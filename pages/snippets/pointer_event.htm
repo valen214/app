@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    -ms-user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+
+    touch-action: none; /*
+    auto | none | [ [ pan-x | pan-left | pan-right ] ||
+        [ pan-y | pan-up | pan-down ] || pinch-zoom ] | manipulation
+    */
+
+    background: #ddf;
+}
+
+table {
+    border: 1px solid black;
+}
+
+th, td {
+    border: 1px solid #0af;
+    text-align: left;
+    min-width: 100px;
+}
+</style>
+</head>
+<body>
+
+<table id="event_table">
+    <tr>
+        <th>event</th><th>status</th><th>count</th>
+    </tr>
+</table>
+<br />
+<a href="//fiddle.jshell.net/7xwpvazz/show/"
+        >view</a><br />
+<a href="//fiddle.jshell.net/xvalen214x/7xwpvazz/106/show/"
+        >view version</a><br />
+<a href="http://jsfiddle.net/xvalen214x/7xwpvazz/embedded/result/"
+        >result</a><br />
+<a href="https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent"
+        >MDN Touch Event</a>
+<a href=
+"https://patrickhlauke.github.io/touch/tests/touch-feature-detect.html"
+        >detect</a>
+<br />
+              
+<script>
+window.addEventListener("load", function(){
+    var event_table = document.getElementById("event_table");
+    ["touchstart", "touchmove", "touchend", "touchcancel",
+    "mousedown", "mousemove", "mouseup", "click"].forEach((e) =>{
+        var tr = document.createElement("tr");
+        var td0 = document.createElement("td"),
+                td1 = document.createElement("td"),
+                td2 = document.createElement("td");
+        // window[e] = td0;
+        td0.innerText = e;
+        td1.id = e + "_status";
+        td2.id = e + "_count";
+        tr.appendChild(td0);
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        event_table.appendChild(tr);
+    });
+
+    function increCount(elem){
+        elem.innerText =
+                parseInt(elem.innerText || 0) + 1;
+    }
+
+    function setTouch(id, status, x, y){
+        var a = document.getElementById("touch_" + id);
+        if(!a){
+            a = document.createElement("tr");
+            a.id = "touch_" + id;
+            a.appendChild(document.createElement("td"));
+            a.appendChild(document.createElement("td"));
+            a.appendChild(document.createElement("td"));
+            a.appendChild(document.createElement("td"));
+            table.appendChild(a);
+        }
+        var b = a.children;
+        b[0].innerText = id;
+        b[1].innerText = status;
+        b[2].innerText = x;
+        b[3].innerText = y;
+    }
+
+    function setTouches(e, name){
+        var touches = e.changedTouches,
+                len = touches.length;
+        for(var i = 0; i < len; ++i){
+            var t = touches.item(i);
+            setTouch(t.identifier, name,
+                    t.screenX, t.screenY);
+            /**
+                touch interface:
+                    .identifier
+                    .screenX .screenY
+                    .clientX .clientY
+                    .pageX .pageY
+                    .target
+                    
+                experimental:
+                    .radiusX .radiusY
+                    .rotationAngle
+                    .force
+            */
+        }
+    }
+
+    document.addEventListener("touchstart", (e) =>{
+        console.log("touchstart:", e);
+        setTouches(e, "touchstart");
+        touchstart_status.innerText =
+                touchend_status.innerText = "touch start";
+        increCount(touchstart_count);
+    });
+
+    document.addEventListener("touchmove", (e) =>{
+        console.log("touchmove:", e);
+        setTouches(e, "touchmove");
+        increCount(touchmove_count);
+    });
+
+    document.addEventListener("touchend", (e) =>{
+        console.log("touchend:", e);
+        setTouches(e, "touchend");
+        touchstart_status.innerText =
+                touchend_status.innerText = "touch end";
+        increCount(touchend_count);
+    });
+
+    document.addEventListener("touchcancel", (e) =>{
+        touchend_status.innerText =
+            touchcancel_status.innerText = "touch cancel";
+        increCount(touchcancel_count);
+    });
+
+    document.addEventListener("mouseup", (e) =>{
+        mouseup_status.innerText =
+                mousedown_status.innerText = "mouse up";
+        increCount(mouseup_count);
+    });
+    document.addEventListener("mousedown", (e) =>{
+        mouseup_status.innerText =
+                mousedown_status.innerText = "mouse down";
+        increCount(mousedown_count);
+    });
+
+    document.addEventListener("mousemove", (e) =>{
+        increCount(mousemove_count);
+    });
+
+    document.addEventListener("click", (e) =>{
+        increCount(click_count);
+    });
+
+
+
+    var table = document.createElement("table");
+    var header = document.createElement("tr");
+    ["id", "status", "screenX", "screenY"].forEach((e, i, arr) =>{
+        var elem = document.createElement("th");
+        elem.id = "touch_" + e;
+        elem.innerText = (i == 0 ? "touch " : "") + e;
+        header.appendChild(elem);
+    });
+    table.appendChild(header);
+    document.body.appendChild(table);
+    /*
+    touchstart
+    touchmove
+    touchend
+    mouseover
+    mousemove
+    mousedown
+    mouseup
+    click
+    */
+});
+</script>
+</body>
+</html>

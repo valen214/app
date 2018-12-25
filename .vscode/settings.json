@@ -1,0 +1,16 @@
+{
+    "editor.tabSize": 4,
+    "editor.rulers": [80],
+    "workbench.editor.tabCloseButton": "off",
+    "workbench.settings.editor": "json",
+
+    
+    "workbench.colorTheme": "Visual Studio Light",
+    "editor.tokenColorCustomizations": {
+        "numbers": "#ff8000",
+    },
+    "jshint.options": {
+        "esversion": 6,
+    },
+    "jshint.lintHTML": true,
+}

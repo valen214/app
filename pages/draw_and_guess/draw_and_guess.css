@@ -1,0 +1,339 @@
+
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    user-select: none;
+    overflow: hidden;
+}
+html, body, input {
+    font-family: "Consolas";
+    font-size: 5vw;
+    line-height: 2em;
+}
+
+div[id^="page-"] {
+    /*
+    https://coolors.co/
+    */
+    background: #000d38;
+    width: 100%;
+    height: 100%;
+    display: none;
+    overflow: hidden;
+    pointer-events: none;
+}
+div[id^="page-"][class~="show"] {
+    display: block;
+    pointer-events: auto;
+}
+
+
+
+#menu, #page2_container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+#menu {
+    width: var(--page_container_width);
+    height: var(--page_container_height);
+}
+#page2_container {
+    width: 100%;
+    height: 100%;
+}
+
+#user_name, #room_id,
+#page2_room_info,
+#page2_chat_room, #page2_chat_input {
+    user-select: text;
+}
+
+
+
+
+
+#menu {
+    background: #d0d3dd;
+    padding-top: 5%;
+}
+#user_name, #room_id {
+    padding-left: 15px;
+}
+#join_room, #create_room {
+    background: #8da0dd;
+    text-align: center;
+    border-radius: 15px;
+}
+#join_room:hover, #create_room:hover {
+    background: #7d90cd;
+    cursor: pointer;
+}
+#room_list {
+    background: #637ac6;
+    border: 1px solid #333;
+    overflow-y: auto;
+}
+
+
+
+
+
+#page2_container {
+    background: #d0d3dd;
+    display: inline-block;
+}
+#page2_canvas_container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+#page2_overlay_container {
+    display: none;
+    background: rgba(108, 116, 142, 0.5);
+}
+#page2_overlay {
+    display: inline-block;
+    
+}
+#page2_canvas {
+    background: white;
+    cursor: pointer;
+}
+#page2_right_panel {
+    background: white;
+    position: relative;
+}
+#page2_control { 
+    width: 100%;
+    height: 20%;
+    background: #8094D6;
+}
+#page2_color_button {
+    background: #ddd;
+    display: inline-block;
+    height: 100%;
+}
+#page2_color_button > span {
+    display: inline-block;
+    font-size: 6vh;
+    line-height: 1.35;
+    cursor: pointer;
+}
+#page2_color_button > span:hover,
+#page2_color_plate div > span:hover {
+    transform: translateY(2px);
+}
+#page2_color_plate {
+    display: none;
+    background: white;
+    height: 100%;
+    padding-left: 15px;
+    padding-top: 10px;
+    position: absolute;
+    z-index: 5;
+}
+#page2_color_plate.show {
+    display: block;
+}
+#page2_color_plate div {
+    cursor: pointer;
+    display: inline-block;
+    font-size: 6vh;
+    line-height: 1.1;
+    padding: 5px;
+}
+#page2_color_plate div > span {
+    display: inline-block;
+}
+#page2_room_info {
+    background: white;
+    font-family: "Consolas";
+    font-size: 16px;
+    line-height: 1.2em;
+    overflow: auto;
+    overflow-wrap: break-word;
+    height: 30%;
+    padding: 5px 15px 5px; /* need to offset the padding */
+}
+
+#page2_chat_room_container {
+    height: 100%;
+    width: 100%;
+    background: white;
+}
+#page2_chat_room {
+    font-family: "Consolas";
+    font-size: 16px;
+    line-height: 1.2em;
+    overflow: auto;
+    overflow-wrap: break-word;
+    height: calc(100% - 20px * 2);
+    padding: 5px 15px 5px;
+}
+
+#page2_chat_input {
+    font-size: 20px;
+    width: 100%;
+    padding-left: 15px;
+    height: 2em;
+    line-height: 2em;
+    display: block;
+}
+
+/*
+Layout Specific
+https://developer.mozilla.org/en-US/docs/Web/CSS/
+
+gird area starts with 1
+
+https://stackoverflow.com/questions/47882924/
+preventing-double-borders-in-css-grid
+*/
+
+
+:root {
+    --page_container_width: 100%;
+    --page_container_height: 100%;
+}
+#menu {
+    display: grid;
+    
+    grid-template-columns: repeat(24, 4.1666%);
+    grid-template-rows: repeat(60, 1.6666%);
+    grid-column-gap: 0;
+    grid-row-gap: 0;
+}
+#user_name   { grid-area:  1 / 4 /  5 / 22; }
+#room_id     { grid-area:  6 / 4 / 10 / 22; }
+#join_room   { grid-area: 11 / 4 / 15 / 22; }
+#create_room { grid-area: 16 / 4 / 20 / 22; }
+#room_list   { grid-area: 21 / 4 / 60 / 22; }
+
+@media only screen and (min-width: 680px) {
+    html, body, input {
+        font-size: 25px;
+    }
+
+    #user_name   { grid-area:  1 /  4 /  5 / 12; }
+    #room_id     { grid-area:  6 /  4 / 10 / 22; }
+    #join_room   { grid-area: 11 /  4 / 15 / 12; }
+    #create_room { grid-area: 11 / 13 / 15 / 22; }
+    #room_list   { grid-area: 18 /  4 / 59 / 22; }
+    
+}
+@media only screen and (min-width: 1080px) {
+    :root {
+        --page_container_width:  100%;
+        --page_container_height: 100%;
+    }
+    #page2_container {
+        box-shadow: 5px 5px 5px #333;
+    }
+}
+
+/*
+justify-items: stretch;
+align-items: stretch;
+https://css-tricks.com/grid-areas-element-occupies-arent-necessarily-size/
+*/
+#page2_container {
+    display: grid;
+
+    width: var(--page_container_width);
+    height: var(--page_container_height);
+    
+    grid-template-columns: repeat(24, 4.1667%);
+    grid-template-rows: repeat(12, 8.3333%);
+    grid-column-gap: 0;
+    grid-row-gap: 0;
+}
+#page2_canvas_container,
+#page2_overlay_container,
+#page2_control,
+#page2_color_plate,
+#page2_room_info,
+#page2_chat_room_container {
+    width: 100%;
+    height: 100%;
+}
+@media only screen and (orientation: portrait){
+    #page2_canvas_container     { grid-area: 1 /  1 /  8 / 25; }
+    #page2_overlay_container    { grid-area: 1 /  1 /  8 / 25; }
+    #page2_control              { grid-area: 8 /  1 /  9 / 25; }
+    #page2_color_plate          { grid-area: 9 /  1 / 13 / 10; }
+    #page2_room_info            { grid-area: 9 /  1 / 13 / 10; }
+    #page2_chat_room_container  { grid-area: 8 / 10 / 13 / 25; }
+
+    #page2_chat_room_container {
+        border-left: 1px solid #333;
+    }
+    #page2_canvas_container {
+        border-bottom: 1px solid #333;
+    }
+    #page2_control {
+        border-bottom: 1px solid #333;
+    }
+
+    #page2_canvas {
+        max-height: 58.3333vh;
+        max-width: calc(58.3333vh / 0.75);
+        width: 100vw;
+        height: 75vw;
+    }
+}
+@media only screen and (orientation: landscape){
+    #page2_canvas_container     { grid-area: 1 /  1 / 13 / 20; }
+    #page2_overlay_container    { grid-area: 1 /  1 / 13 / 20; }
+    #page2_room_info            { grid-area: 1 / 20 /  6 / 25; }
+    #page2_control              { grid-area: 6 / 20 /  7 / 25; }
+    #page2_color_plate          { grid-area: 7 / 20 / 13 / 25; }
+    #page2_chat_room_container  { grid-area: 7 / 20 / 13 / 25; }
+
+    #page2_canvas_container {
+        border-right: 1px solid #333;
+    }
+    #page2_chat_room_container {
+        border-top: 1px solid #333;
+    }
+    #page2_canvas {
+        max-height: 100vh;
+        max-width: calc(100vh / 0.75);
+        width: 79.1654vw; /* (20 - 1) * 4.1667vw */
+        height: 59.3741vw;
+    }
+}
+
+
+.popup_message {
+    position: fixed;
+    padding: 2em;
+    top: 30%;
+    left: 50%; /* 50% + side.width / 2 */
+    transform: translate(-50%, -50%);
+    border-radius: 1em;
+    background-color: #8bf;
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
+}
+.popup_message.show {
+    opacity: 0.8;
+}
+.popup_message.hide {
+    opacity: 0;
+    transition: opacity 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19);
+    -o-transition: opacity 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19);
+    -moz-transition: opacity 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19);
+    -webkit-transition: opacity 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19);
+}

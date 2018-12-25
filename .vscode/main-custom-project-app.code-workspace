@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "D:\\GoogleDrive\\sync\\main-custom-project\\app"
+		}
+	],
+	"settings": {
+		"workbench.editor.tabCloseButton": "off",
+		"workbench.settings.editor": "json"
+	}
+}

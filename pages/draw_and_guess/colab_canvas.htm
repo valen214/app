@@ -1,0 +1,582 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width">
+<base href="http://ec2-18-222-252-221.us-east-2.compute.amazonaws.com:8129" />
+<link rel="stylesheet" href="draw_and_guess/draw_and_guess.css" />
+<style>
+body {
+    touch-action: none; /*
+    auto | none | [ [ pan-x | pan-left | pan-right ] ||
+        [ pan-y | pan-up | pan-down ] || pinch-zoom ] | manipulation
+    */
+}
+</style>
+</head>
+<body>
+<div id="page-1" class="show">
+    <div>&nbsp;page 1</div>
+    <div id="menu">
+        <input id="user_name" type="text" placeholder="name" />
+        <input id="room_id" type="text" placeholder="enter room id" />
+        <span id="join_room">Join Room</span>
+        <span id="create_room">Create Room</span>
+        <div id="room_list"></div>
+    </div>
+</div>
+<div id="page-2">
+        <div>&nbsp;page 2</div>
+    <div id="page2_container">
+        <div id="page2_canvas_container">
+            <canvas id="page2_canvas"></canvas>
+        </div>
+        <div id="page2_control">
+            <div id="page2_color_button"><span>&#x1F3A8;</span></div>
+        </div>
+        <div id="page2_color_plate">
+        </div>
+        <div id="page2_room_info">
+        </div>
+        <div id="page2_chat_room_container">
+            <div id="page2_chat_room"></div>
+            <input id="page2_chat_input" type="text"></input>
+        </div>
+    </div>
+</div>
+<div id="message" class="popup_message show hide"></div>
+<script src="draw_and_guess/util.js"></script>
+<script src="webrtc/webrtc_peer.js"></script>
+<script src="draw_and_guess/canvas.js"></script>
+<script>
+window.addEventListener("load", function(){
+
+var c = new CustomAnimatedCanvas("page2_canvas");
+c.register_handlers().start();
+
+c.do("stroke").add(20, 20).add(100, 20);
+
+c.on("strokestart", function(action){
+    // c.actions.push(action)
+}).on("strokeupdate", function(action){
+}).on("strokeend", function(action){
+    
+});
+
+// initialize() // p2p.js
+
+
+for(var id of [
+        "user_name", "room_id", "join_room", "create_room", "room_list",
+        "page2_canvas", "page2_color_button", "page2_color_plate",
+        "page2_room_info",
+        "page2_chat_room", "page2_chat_input",
+]){
+    eval(`var ${id} = document.getElementById("${id}");`);
+}
+
+/* nice hack
+https://stackoverflow.com/questions/
+13630229/can-i-have-an-onclick-effect-in-css#answer-32721572
+*/
+document.body.addEventListener("click", function(e){
+    if(page2_color_plate.contains(e.target)){
+        // page2_color_plate.classList.add("show");
+    } else if(page2_color_button.contains(e.target)){
+        page2_color_plate.classList.toggle("show");
+    } else{
+        page2_color_plate.classList.remove("show");
+    }
+});
+// initialize plate colors
+function initializePlateColors(){
+    var plate = document.getElementById("page2_color_plate");
+    const colors = [
+        "black", "#fc2002", "#34fc02", "#022afc", "#aaf"
+    ];
+    const text_shadow_suffix = [
+            "-1px -1px", "-1px 1px", "1px -1px", "1px 1px #000"
+    ].join(" #000,");
+    for(const c of colors){
+        var elem = document.createElement("div");
+        var icon = document.createElement("span");
+        icon.innerHTML = "&#x2B24"; // "&#x1F3A8;";
+        icon.style.color = c;
+        elem.style.textShadow = text_shadow_suffix;
+        elem.appendChild(icon);
+        plate.appendChild(elem);
+    }
+}
+initializePlateColors();
+
+function count(){
+    return count.i ? ++count.i : count.i = 1;
+}
+
+function popup_message(msg="", duration=500){
+    if(msg) message.innerHTML = msg;
+    message.classList.remove("hide");
+    message.classList.add("show");
+    setTimeout(() => {
+        message.classList.remove("show");
+        message.classList.add("hide");
+    }, duration);
+}
+function switchPage(index=1){
+    if(0 < index && index < 3){
+        var page_showing = document.querySelector(
+                'div[id^="page-"][class~="show"]');
+        var target_page_id = "page-" + index;
+        if(page_showing.id != target_page_id){
+            page_showing.classList.remove("show");
+            document.getElementById(target_page_id).classList.add("show");
+        }
+    }
+}
+
+
+function print_info(html_src){
+    if(html_src){
+        var __elem = page2_room_info;
+        var isScrolledToBottom = (__elem.scrollHeight -
+                __elem.clientHeight) <= __elem.scrollTop + 1;
+        __elem.innerHTML += html_src;
+        if(isScrolledToBottom){
+            __elem.scrollTop = __elem.scrollHeight - __elem.clientHeight;
+        }
+    }
+}
+function print_chat(html_src){
+    if(html_src){
+        var __elem = page2_chat_room;
+        var isScrolledToBottom = (__elem.scrollHeight -
+                __elem.clientHeight) <= __elem.scrollTop + 1;
+        __elem.innerHTML += html_src;
+        if(isScrolledToBottom){
+            __elem.scrollTop = __elem.scrollHeight - __elem.clientHeight;
+        }
+    }
+}
+
+
+
+
+
+
+var PORT = "<? PORT ?>";
+if(!parseInt(PORT)){ // not running on desired server
+    document.getElementById("page-1").classList.remove("show");
+    document.getElementById("page-2").classList.add("show");
+}
+
+var server_socket_addr = "ws://" + window.location.hostname + ":" + PORT;
+console.log("server socket addr:", server_socket_addr);
+const socket = new WebSocket(server_socket_addr);
+
+function sendObject(obj){
+    console.log("%csending to server:", "color:blue", obj);
+    socket.send(JSON.stringify(obj));
+}
+
+var sendToEveryOne = () => {
+    console.log("default handler: sendToEveryOne()");
+};
+
+var leaveRoomHandler = () => {
+    throw new Error("leaveRoomHandler(): not yet assigned");
+};
+
+const CANVAS_CONFIG = {
+    "strokeStyle": "random",
+    "lineWidth": 5,
+};
+
+function StartRoom(o){
+    const room_name = o["room_name"];
+    const user_uuid = o["user_uuid"];
+    const user_name = o["user_name"];
+    const user_list = o["user_list"];
+    const peer = new Peer(user_uuid);
+    var color = randomColor((Math.random() + 0.6180339)%1);
+
+    const uuid_to_name = {};
+    const uuid_to_conn = {};
+    
+    function spanTextWithColor(text, color){
+        return `<span style="color:${color}">${text}</span>`;
+    }
+
+    print_info(`
+    
+    
+    `);
+
+
+    print_info(`You("${spanTextWithColor(user_name, color)
+            }") have joined the room("${room_name}")<br />`);
+    print_info(`Your UUID: "${spanTextWithColor(
+            o["user_uuid"], color)}"<br />`);
+    console.assert(user_name == document.getElementById("user_name").value);
+
+    var uuid_to_canvas_action = {};
+    function onMessage(data){
+        const o = JSON.parse(data);
+        switch(o["type"]){
+        case "join_room":
+            console.assert(o["room_name"] == room_name);
+            console.assert(this instanceof PeerConnection);
+
+            console.log(
+                    `"%c${o["name"]}%c" joined the room`,
+                    "color:"+o["color"], "color:black");
+            print_info(`player "<span style="color:${o["color"]}">${
+                    o["name"]}</span>" joined the room!<br /><br />`);
+
+            user_list.push(o["src_uuid"]);
+            uuid_to_name[o["src_uuid"]] = o["name"];
+            uuid_to_conn[o["src_uuid"]] = this;
+            this.send(JSON.stringify({
+                "type": "joined_room_feedback",
+                "src_uuid": user_uuid,
+                "room_name": room_name,
+                "name": user_name,
+            }));
+            break;
+        case "joined_room_feedback":
+            console.assert(o["room_name"] == room_name);
+            // supposed to be set in createConnection
+            console.assert(uuid_to_conn[o["src_uuid"]] === this);
+            uuid_to_name[name] = o["name"];
+            break;
+        case "canvas_strokestart":
+            var src_uuid = o["src_uuid"];
+            console.assert(src_uuid != user_uuid);
+            var action = new CanvasStroke(c, o);
+            c.actions.push(action);
+            if(src_uuid in uuid_to_canvas_action){
+                uuid_to_canvas_action[src_uuid].push(action);
+            } else{
+                uuid_to_canvas_action[src_uuid] = [action];
+            }
+            break;
+        case "canvas_strokeupdate":
+            console.assert(o["src_uuid"] != user_uuid);
+            var actions = uuid_to_canvas_action[o["src_uuid"]];
+            var action = actions[actions.length - 1];
+            action.add(o["x"], o["y"], true);
+            break;
+        case "canvas_clear":
+            c.actions.push(new CanvasClear(c));
+            break;
+        case "chat":
+            print_chat(`<span style="color:${o["color"]}"` +
+                    `>${o["name"]}</span>: ${o["content"]}`)
+            break;
+        default:
+            console.error("unsupported action type");
+        }
+    }
+
+
+    function onConnection(pc){
+        new Promise(resolve => pc.on("open", resolve
+        )).then(_pc => new Promise(resolve => {
+            console.assert(_pc === pc);
+            console.warn("connection opened!");
+
+        })).catch(console.error);
+        pc.on("message", onMessage.bind(pc));
+    }
+    peer.on("connection", onConnection);
+
+    console.assert(user_list.includes(user_uuid));
+
+    function createConnection(target_uuid){
+        console.log("CREATING CONNECTION TO " + target_uuid);
+        var pc = peer.connect(target_uuid);
+        new Promise(resolve => pc.on("open", resolve
+        )).then(_pc => new Promise(resolve => {
+            console.assert(_pc === pc);
+            console.warn("connection opened!");
+
+            pc.send(JSON.stringify({
+                "type": "join_room",
+                "src_uuid": user_uuid,
+                "room_name": room_name,
+                "name": user_name,
+                "color": color,
+            }));
+
+            uuid_to_conn[target_uuid] = pc;
+
+        })).catch(console.error);
+        pc.on("message", onMessage.bind(pc));
+    }
+
+    console.log("user_list:", user_list);
+    for(var target_uuid of user_list){
+        if(target_uuid != user_uuid){
+            createConnection(target_uuid);
+        }
+    }
+
+    function __sendToEveryOne(data){
+        switch(typeof data){
+        case "object":
+            data = JSON.stringify(data);
+        case "string":
+            for(var uuid of user_list){
+                if(uuid == user_uuid) continue;
+                uuid_to_conn[uuid].send(data);
+            }
+            break;
+        default:
+            throw new Error("invalid data type");
+        }
+    }
+    sendToEveryOne = __sendToEveryOne;
+
+    leaveRoomHandler = function(o){
+        const uuid = o["user_uuid"];
+        console.assert(o["server"] === true,
+                o["room_name"] == room_name,
+                o["user_name"] == uuid_to_name[uuid],
+                o["uuid"] == user_uuid);
+        uuid_to_conn[uuid].close();
+        delete uuid_to_name[uuid];
+        delete uuid_to_conn[uuid];
+        console.assert(user_list.indexOf(uuid) >= 0,
+                "if this message shows,",
+                "it means server is telling us to remove a user",
+                "that is already not here,",
+                "which should've been not happening because",
+                "the server program is well-defined");
+        // but just in case....... or can use filter?
+        // if(user_list.includes(uuid)){ // search twice
+        let i = user_list.indexOf(uuid);
+        if(i >= 0) user_list.splice(user_list.indexOf(uuid), 1);
+        console.log(`player "${o["user_name"]}" left the room`);
+        print_info(`player "<span color="${
+                "grey"}">${o["user_name"]}</span>" left the room`);
+    };
+
+    /**
+     * Other initialize
+     * 
+     * 
+     * 
+     * 
+     * 
+     */
+    c.on("strokestart", function(action){
+        console.log("STROKESTART!!!!!!!!!!");
+        Object.assign(action, CANVAS_CONFIG);
+        if(CANVAS_CONFIG.strokeStyle == "random"){
+            action.strokeStyle = randomColor();
+        }
+        sendToEveryOne(JSON.stringify({
+                "type": "canvas_strokestart",
+                "src_uuid": user_uuid,
+                "strokeStyle": action.strokeStyle,
+                "lineWidth": action.lineWidth,
+                "lineJoin": action.lineJoin,
+        }));
+    }).on("strokeupdate", function(action){
+        var pts = action.points;
+        pts = pts[pts.length - 1];
+        sendToEveryOne(JSON.stringify({
+                "type": "canvas_strokeupdate",
+                "src_uuid": user_uuid,
+                "x": pts.x, "y": pts.y,
+        }));
+    }).on("strokeend", function(action){
+
+    }).on("clear", function(action){
+        sendToEveryOne(JSON.stringify({
+                "type": "canvas_clear",
+                "src_uuid": user_uuid,
+        }));
+    });
+
+    
+    function distribute_chat(str, end="\n"){
+        str = (str + end).replace(
+                    "<", "&lt;").replace(
+                    ">", "&gt;").replace("\n",
+                "<br />");
+        print_chat(`<span style="color:${color}"` +
+                `>${user_name}</span>: ${str}`)
+        sendToEveryOne(JSON.stringify({
+                    "type": "chat",
+                    "color": color,
+                    "name": user_name,
+                    "content": str,
+                    "src_uuid": user_uuid,
+        }))
+    }
+
+
+    const COMMAND_MATCHER = new RegExp(`^/(${[
+            "clear", "size", "color",
+    ].join("|")})`); // must not have 'g'
+    page2_chat_input.addEventListener("keydown", function(e){
+        var key = e.which || e.keyCode;
+        switch(key){ // suggested value
+        case 13:
+            console.assert(e.key == "Enter");
+            let input = page2_chat_input.value;
+            let cmd = COMMAND_MATCHER.exec(input)
+            switch(cmd && cmd[0]){
+            case "/clear":
+                c.do("clear");
+                break;
+            case "/color":
+                CANVAS_CONFIG.strokeStyle = (
+                    input.slice(7) === "random" ? "random" : [
+                        document.head.style.color = "#000",
+                        document.head.style.color = CANVAS_CONFIG.strokeStyle,
+                        document.head.style.color = input.slice(6),
+                        document.head.style.color
+                ][4]);
+                break;
+            case "/size":
+                CANVAS_CONFIG.lineWidth = (
+                        +input.slice(5) || CANVAS_CONFIG.lineWidth || 3);
+                break;
+            default:
+                if(input){
+                    distribute_chat(input);
+                }
+            }
+            page2_chat_input.value = "";
+            break; // enter
+        }
+    });
+
+    switchPage(2);
+
+    /**
+     * End of StartRoom, Game starts
+     * 
+     * 
+     * 
+     * 
+     * 
+     * 
+     */
+}
+
+
+
+function initializeComponent(){
+
+    function buttonClicked(e){
+        if(this.button_clicked){
+            popup_message("loading");
+            console.error(this["loading_msg"]);
+            return;
+        }
+        this.button_clicked = true;
+
+        const callback_uuid = count();
+        const req = {
+            "request": this["request"],
+            "room_name": room_id.value,
+            "user_name": user_name.value,
+            "callback": callback_uuid,
+        };
+        new Promise(resolve => {
+            CALLBACK[callback_uuid] = resolve;
+            sendObject(req);
+        }).then(o => {
+            if(o["status"]){
+                StartRoom(o);
+                this.button_clicked = null;
+            } else{
+                popup_message(o["message"]);
+            }
+            if(this.button_clicked != null){
+                this.button_clicked = false;
+            }
+        });
+        setTimeout(() => {
+            if(callback_uuid in CALLBACK){
+                console.error(this["timeout_msg"]);
+                CALLBACK[callback_uuid] = () => {};
+                this.button_clicked = false;
+            }
+        }, 5000);
+    }
+
+    create_room.addEventListener("click", buttonClicked.bind({
+            "button_clicked": false,
+            "request": "create_room",
+            "loading_msg": "create_room clicked while still processing",
+            "timeout_msg": "callback not yet received, create room halted",
+    }));
+    join_room.addEventListener("click", buttonClicked.bind({
+            "button_clicked": false,
+            "request": "join_room",
+            "loading_msg": "join_room clicked while still processing",
+            "timeout_msg": "callback not yet received, join room halted",
+    }));
+}
+
+
+var CALLBACK = {};
+socket.addEventListener("open", function(e){
+    // get room list
+    Peer.log_level(0);
+    sendObject({
+        request: "room_list"
+    });
+    initializeComponent();
+
+});
+socket.addEventListener("message", function(e){
+    var obj = null;
+    try{
+        obj = JSON.parse(e.data);
+    } catch(e){}
+    if(!obj) return;
+
+    console.log("%cmsg from server:", "color:red", obj);
+    console.assert([undefined, "server", "peer"].includes(obj["response"]));
+
+    function doCallback(request, o){
+        var q = CALLBACK[o["callback"]];
+        if(typeof q === "function"){
+            delete CALLBACK[o["callback"]];
+            q(o);
+        } else{
+            console.error("no callback registered for",
+                    `${obj.type}: ${obj.callback}`);
+        }
+    }
+
+    switch(obj["request"]){
+    case "room_list":
+        var room_list = document.getElementById("room_list");
+        for(var l of obj["room_list"]){
+            var e = document.createElement("div");
+            e.innerHTML = `name: ${l[0]}; user count: ${l[1]}<br/>`;
+            room_list.appendChild(e);
+        }
+        break;
+    case "create_room":
+    case "join_room":
+        doCallback(obj["request"], obj);
+        break;
+    case "leave_room":
+        leaveRoomHandler(obj);
+        break;
+    default:
+        console.log("unhandled response:", obj);
+    }
+
+});
+
+
+});
+</script>
+</body>
+</html>
