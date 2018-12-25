@@ -2,6 +2,9 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width">
+<!--
+https://valen214.github.io/app/pages/draw_and_guess/draw_and_guess.htm
+-->
 <base href="http://ec2-18-222-252-221.us-east-2.compute.amazonaws.com:8129" />
 <link rel="stylesheet" href="draw_and_guess/draw_and_guess.css" />
 <style>
@@ -163,9 +166,16 @@ function showOverlay(type, ...args){
     switch(type){
     case "round_begin_countdown":
         var begin = args[0];
-        page2_overlay.innerText = `round begin in ${
-            parseInt((Date.now() - begin) / 1000)
-        } seconds`;
+        var remaining = begin - Date.now();
+        if(remaining > 0){
+            page2_overlay_container.style.display = "block";
+            page2_overlay.innerText = `round begin in ${
+                parseInt(remaining / 1000)} seconds`;
+            setTimeout(showOverlay, Math.min(1000, remaining),
+                    "round_begin_countdown", begin);
+        } else{
+            hideOverlay();
+        }
         break;
     case "pick_word":
         
@@ -173,7 +183,6 @@ function showOverlay(type, ...args){
     default:
         console.error("invalid overlay type:", type);
     }
-    page2_overlay_container.style.display = "block";
 }
 function hideOverlay(){
     page2_overlay_container.style.display = "none";
@@ -233,6 +242,14 @@ function StartRoom(o){
         return `<span style="color:${color}">${text}</span>`;
     }
 
+
+    for(var a of [
+        "room_name", "user_uuid", "user_name", "user_list",
+        "peer", "game_info", "uuid_to_name", "uuid_to_conn",
+    ]){
+        window[a] = eval(a);
+    }
+
     print_info(`
     
     
@@ -253,11 +270,7 @@ function StartRoom(o){
                 page2_canvas.style.pointerEvents = "none";
             }
 
-            console.error("try showing overlay");
-            if(Date.now() > game_info.round_begin){
-                console.error("show overlay");
-                showOverlay("round_begin_countdown", game_info.round_begin);
-            }
+            showOverlay("round_begin_countdown", game_info.round_begin);
 
             break;
         default:
@@ -292,8 +305,11 @@ function StartRoom(o){
 
             if(!game_info.current_drawer){
                 var d = new Date();
-                d.setSeconds(d.getSeconds() + sec_before_round * 1000);
+                d.setSeconds(d.getSeconds() + sec_before_round);
                 var begin_time = d.getTime();
+
+                console.log("SENNDING BEING_TIME:", begin_time);
+
                 Object.assign(game_info, {
                     "current_drawer": user_uuid,
                     "round_begin": begin_time,

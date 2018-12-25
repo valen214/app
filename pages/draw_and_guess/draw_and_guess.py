@@ -17,8 +17,11 @@ import uuid
 #     encode_socket_data, decode_socket_data)
 
 from pages.util import (
-    content_type, resolve_socket_handshake,
-    encode_socket_data, decode_socket_data, C_R, C_G, C_B, C_E)
+        content_type, resolve_socket_handshake,
+        encode_socket_data, decode_socket_data,
+        handle_websocket_message,
+        C_R, C_G, C_B, C_E
+)
 
 HOST, PORT = "0.0.0.0", 8001
 

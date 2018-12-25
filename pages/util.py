@@ -83,10 +83,10 @@ def handle_websocket_message(socket, handler, *args):
 
         if LENGTH == 126:
             data = socket.recv(2)
-            LENGTH = struct.unpack("!H", data)
+            LENGTH = struct.unpack("!H", data)[0]
         elif LENGTH == 127:
             data = socket.recv(8)
-            LENGTH = struct.unpack("!Q", data)
+            LENGTH = struct.unpack("!Q", data)[0]
 
 
         if OPCODE == 0: pass # continuation frame

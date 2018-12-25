@@ -100,10 +100,14 @@ div[id^="page-"][class~="show"] {
 #page2_overlay_container {
     display: none;
     background: rgba(108, 116, 142, 0.5);
+    position: absolute;
 }
 #page2_overlay {
     display: inline-block;
-    
+    position: relative;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 #page2_canvas {
     background: white;
