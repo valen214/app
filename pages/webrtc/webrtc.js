@@ -104,7 +104,7 @@ https://jscompress.com/
         HOST_NAME = "ec2-18-222-252-221.us-east-2.compute.amazonaws.com";
     }
 
-    const SOCKET_SERVER_ADDRESS = "ws://" + HOST_NAME + ":" + PORT;
+    const SOCKET_SERVER_ADDRESS = "wss://" + HOST_NAME + ":" + PORT;
     const RTC_PEER_CONFIGURATION = {
         "iceServers": [
             {"urls": "stun:stun.l.google.com:19302"},

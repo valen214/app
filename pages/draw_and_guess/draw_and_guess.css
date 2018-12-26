@@ -70,8 +70,10 @@ div[id^="page-"][class~="show"] {
 }
 #join_room, #create_room {
     background: #8da0dd;
-    text-align: center;
     border-radius: 15px;
+    display: flex;
+    align-items: center; /* vertical */
+    justify-content: center;
 }
 #join_room:hover, #create_room:hover {
     background: #7d90cd;
@@ -99,7 +101,7 @@ div[id^="page-"][class~="show"] {
 }
 #page2_overlay_container {
     display: none;
-    background: rgba(108, 116, 142, 0.5);
+    background: rgba(108, 116, 142, 0.2);
     position: absolute;
 }
 #page2_overlay {

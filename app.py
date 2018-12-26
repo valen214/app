@@ -27,7 +27,7 @@ curl http://169.254.169.254/latest/meta-data/public-ipv4
 
 
 
-# import contextlib # redirect_stdout
+import contextlib # redirect_stdout
 import http
 import importlib
 import importlib.util
@@ -35,7 +35,7 @@ import inspect
 import io
 import os
 import re
-import signal
+import ssl
 import subprocess
 import sys
 import textwrap
@@ -176,10 +176,11 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
     
     # overrided parent method
     def log_message(self, format, *args):
-        if not self.path in excluded_info:
-            print(f"{' '*8}{self.address_string()} {self.version_string()}" +
-                    f"\n{' '*8}[{self.log_date_time_string()}]",
-                    format % args, end="\n"*3+"-"*80+"\n")
+        if hasattr(self, "path") and not self.path in excluded_info:
+            print(" " * 8 + "{} {}\n{}[{}] {}".format(
+                    self.address_string(), self.version_string(), " "*8,
+                    self.log_date_time_string(), format % args),
+                    end="\n"*3+"-"*80+"\n")
 
     def do_HEAD(self):
         self.do_method()
@@ -189,6 +190,9 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.do_method()
+
+    def do_CONNECT(self):
+        print(f"{G}DOING HTTP CONNECT{E}")
 
     def do_method(self):
         # self.headers is an instance of
@@ -269,17 +273,14 @@ def module_thread():
     def add_script(path):
         def load_module_from_path(path):
 
-            
-            if True:
-                name = os.path.basename(path[:-3])
-            else:
-                name = path[2:-3].replace("/", ".")
+            # name = os.path.basename(path[:-3])
+            name = path[2:-3].replace("/", ".")
 
             spec = importlib.util.spec_from_file_location(name, path)
             
             m = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(m)
-            # sys.modules[name] = m
+            sys.modules[name] = m
 
             print("- load_module_from_path():\n" +
                     f"-     path: {path};\n" +
@@ -320,12 +321,15 @@ def module_thread():
                 remaining.remove(path) # script still exists
 
                 if os.stat(path).st_mtime != info[path][1]: # script modified
-                    m = info[path][0]
-                    n = m.__name__
-                    print('\nmodule "{}" changed, reloading'.format(n))
-                    wsgi_application_handler.remove_handlers_by_module(n)
-                    if hasattr(m, "close"): m.close()
-                    add_script(path)
+                    try:
+                        m = info[path][0]
+                        n = m.__name__
+                        print('\nmodule "{}" changed, reloading'.format(n))
+                        wsgi_application_handler.remove_handlers_by_module(n)
+                        if hasattr(m, "close"): m.close()
+                        add_script(path)
+                    except:
+                        info[path][1] = os.stat(path).st_mtime
         
         # script removed
         for path in remaining:
@@ -336,7 +340,7 @@ def module_thread():
             if hasattr(m, "close"): m.close()
             del info[path]
         
-        time.sleep(2)
+        time.sleep(1)
 
 def runtime_interact():
     # print("\n".join([f"{a}: {b}" for a, b in dict(globals()).items()]))
@@ -353,31 +357,25 @@ def runtime_interact():
 def main():
     threading.Thread(target=module_thread).start()
     threading.Thread(target=runtime_interact).start()
-
-    server_address = ("0.0.0.0", 8129)
-    server = HTTPServer(server_address, HTTPRequestHandler)
     
     # this returns correct value, but will show the connection info
-    # public_ip = subprocess.check_output(["curl",
+    # publiip = subprocess.check_output(["curl",
     #         "http://169.254.169.254/latest/meta-data/public-ipv4"])
     #
-    proc = subprocess.Popen(
-            "curl http://169.254.169.254/latest/meta-data/public-ipv4",
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    proc = subprocess.Popen(["curl",
+            "http://169.254.169.254/latest/meta-data/public-ipv4"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(f"public ip: {proc.communicate()[0].decode('utf-8')}")
-    proc.send_signal(signal.SIGTERM)
-    proc.kill()
 
-    code = subprocess.call("color",
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL, shell=True)
 
-    if code != 0:
-        print()
-
-    print(f"{C_R}COLOR TEST{C_E}")
-
+    USE_HTTPS = True
     try:
+        server_address = ("0.0.0.0", 8129)
+        server = HTTPServer(server_address, HTTPRequestHandler)
+        if USE_HTTPS:
+            ctx = ssl.SSLContext(ssl._ssl.PROTOCOL_TLS_SERVER)
+            ctx.load_cert_chain('./data/cert_key.pem')
+            server.socket = ctx.wrap_socket(server.socket, server_side=True)
         print("server listening at {}:{}".format(*server_address))
         server.serve_forever()
     except KeyboardInterrupt as ki:

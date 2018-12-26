@@ -4,6 +4,18 @@ import base64
 import hashlib
 import struct
 
+
+
+
+from cryptography import x509 # dependencies
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+
+
+
+
+
 def content_type(path, default="text/plain"):
     ctype = default
     if isinstance(path, str):
@@ -36,8 +48,8 @@ def decode_socket_data(data):
     if data[0] == 0x81:
         pass # content is text
     else:
-        print(f"{C_R}util.py:",
-                f"data[0] == {data[0]} != 0x81, data is not text{C_E}")
+        print(f"{G}util.py:",
+                f"data[0] == {data[0]} != 0x81, data is not text{E}")
     payload_len = data[1] & 127
     
     index_first_mask = 2
@@ -63,23 +75,24 @@ def decode_socket_data(data):
     
     return "".join(decoded_chars), data[last_index:]
 
-def handle_websocket_message(socket, handler, *args):
-    """https://tools.ietf.org/html/rfc6455#page-28
-    """
-    return_code = True
-    while return_code:
+# ''.join(format(byte, '08b') for byte in _bytes)
+def get_next_websocket_message(socket):
+    while True:
         data = socket.recv(2)
+        if not data:
+            print(f"{' '*8}{G}util.py: received empty data{E}")
+            return ""
         FIN_RSV123 = 0xf0 & data[0]
         OPCODE = 0x0f & data[0]
         MASKED = data[1] & 0x80
         LENGTH = data[1] & 0x7f
         
         if FIN_RSV123 != 0x80:
-            print("util.py: get_next_socket_message():",
+            print("util.py: get_next_websocket_message():",
                     f"unexpected frame starting bits({bin(FIN_RSV123)})")
         if not MASKED:
-            print(f"{' '*8}{C_R}util.py: get_next_socket_message():",
-                    f"client-to-server message should be masked{C_E}")
+            print(f"{' '*8}{G}util.py: get_next_websocket_message():",
+                    f"client-to-server message should be masked{E}")
 
         if LENGTH == 126:
             data = socket.recv(2)
@@ -89,26 +102,17 @@ def handle_websocket_message(socket, handler, *args):
             LENGTH = struct.unpack("!Q", data)[0]
 
 
-        if OPCODE == 0: pass # continuation frame
-        elif OPCODE == 1: pass # text frame
-        elif OPCODE == 2: pass # binary frame
-        elif OPCODE == 8: # connection close
-            pass
-        elif OPCODE == 9: # ping
+        if OPCODE == 9: # ping
             if LENGTH >= 126:
-                print(f"{' '*8}{C_R}util.py: get_next_socekt_message():",
-                        f"invalid ping frame payload length{C_E}")
+                print(f"{' '*8}{G}util.py: get_next_websocket_message():",
+                        f"invalid ping frame payload length{E}")
             data = socket.recv()
             pong = bytearray([0x8a, MASKED+LENGTH, data])
             socket.sendall(pong)
 
-            print(f"{' ' *8}{C_R}util.py: ping received,",
-                    f"payload: {pong.decode('utf-8')}{C_E}")
+            print(f"{' ' *8}{G}util.py: ping received,",
+                    f"payload: {pong.decode('utf-8')}{E}")
             continue
-        elif OPCODE == 10: # pong
-            pass
-        else: # reserved further control frames
-            pass
 
 
         masks = socket.recv(4)
@@ -118,10 +122,41 @@ def handle_websocket_message(socket, handler, *args):
             data.append(b ^ masks[i])
             i = (i + 1) % 4
 
-        print(f"{' '*8}{C_R}util.py: received data, decoded:\n" +
-                f"{' '*8}{data.decode('utf-8')}{C_E}")
         
+        if OPCODE == 8:
+            print(f"{' '*8}{G}util.py: socket closing signal received{E}")
+            if data == b"\x03\xe9":
+                print(f"{' '*8}{G}return code: 1001{E}")
+                return
+            for ln in [
+                    "closing message:",
+                    data.hex(),
+                    "remaining data:",
+                    socket.recv(4096).hex()]:
+                print(f"{' '*8}{G}" + ln + {E})
+            return
         
+        # bytes.fromhex(
+        return data
+
+
+def handle_websocket_message(socket, handler, *args):
+    """https://tools.ietf.org/html/rfc6455#page-28
+
+
+
+    Opcode:
+        - 0: continuation frame
+        - 1: text frame
+        - 2: binary frame
+        - 8: connection close
+        - 9: ping
+        - a: pong
+
+    """
+    return_code = True
+    while return_code:
+        data = get_next_websocket_message(socket)
         # bytes.fromhex(
         return_code = handler(data, *args)
 
@@ -171,31 +206,107 @@ def encode_socket_data(message):
 
 
 # data in bytes, return bytes
-def resolve_socket_handshake(data):
+def handle_sslsocket_handshake(socket):
+    """
+    https://stackoverflow.com/questions/7000885/
+    python-is-there-a-good-way-to-check-if-text-is-encrypted
+    """
+
+    data = socket.recv(4096)
+
     sec_websocket_key = None
+    try:
+        # print(f"{G}data received:{data.hex()}{E}")
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        print(f"{G}data probably encrypted{E}")
+        # probably encrypted
+        with open("./data/cert_key.pem", "rb") as f:
+            prv_key = serialization.load_pem_private_key(
+                    f.read(), password=None, backend=default_backend())
+            print(prv_key.key_size)
+            print(prv_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            ))
+        
+        # pem = prv_key.private_bytes(
+        #     encoding=serialization.Encoding.PEM,
+        #     format=serialization.PrivateFormat.PKCS8,
+        #     encryption_algorithm=serialization.NoEncryption()
+        # )
+
+        """
+https://www.cisco.com/c/en/us/support/docs/security-vpn/
+secure-socket-layer-ssl/116181-technote-product-00.html
+
+https://security.stackexchange.com/questions/20803/
+how-does-ssl-tls-work?newreg=d52a281bb1e049b8aa1ae26ecd1d3732
+
+https://wiki.openssl.org/index.php/Simple_TLS_Server
+
+https://www.ibm.com/support/knowledgecenter/en/
+SSFKSJ_7.1.0/com.ibm.mq.doc/sy10660_.htm
+
+
+        """
+
+        # ssl record type
+        ssl_type = data[0]
+        version = (data[1], data[2])
+        length = data[3]*256 + data[4]
+
+        if ssl_type == 22: # handshake
+            print(f"{G}SSL Record Version: {version}{E}")
+        elif ssl_type == 20: # change cipher spec
+            pass
+        elif ssl_type == 21: # alert
+            pass
+        elif ssl_type == 23: # application data
+            pass
+        else:
+            raise Exception("Invalid ssl record type")
+
+        # record protocol
+        data = prv_key.decrypt(data[5:], padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+        ))
+        print(f"{G}decrypted data:{data}{E}")
+
+
     # print("="*80)
     for line in data.split(b"\r\n"):
         # print(line.decode("utf-8"))
         if line.startswith(b"Sec-WebSocket-Key:"):
-            sec_websocket_key = line[19:].strip()
+            sec_websocket_key = bytearray(line[19:].strip())
             break
     # print("="*80)
 
+
+    if not data:
+        print(f"{G}handshake not happened{E}")
+        socket.sendall(b"")
+        return
+
     h = hashlib.sha1()
+    # type(sec_websocket_key) == bytearray
     h.update(sec_websocket_key)
-    h.update(resolve_socket_handshake.magic.encode("utf-8"))
+    h.update(WEBSOCKET_HANDSHAKE_MAGIC.encode("utf-8"))
     h = h.digest()
     sec_websocket_accept = base64.b64encode(h).decode("utf-8")
     # print("Sec-WebSocket-Key:", sec_websocket_key.decode("utf-8"))
     # print("Sec-WebSocket-Accept:", sec_websocket_accept)
 
-    return resolve_socket_handshake.handshake.format(
-            sec_websocket_accept).encode("utf-8")
+    socket.sendall(WEBSOCKET_HANDSHAKE_RESPONSE_HEANDER.format(
+            sec_websocket_accept).encode("utf-8"))
 
 
-resolve_socket_handshake.magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+WEBSOCKET_HANDSHAKE_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-resolve_socket_handshake.handshake = (
+WEBSOCKET_HANDSHAKE_RESPONSE_HEANDER = (
         "HTTP/1.1 101 Switching Protocols\r\n"
         "Upgrade: WebSocket\r\n"
         "Connection: Upgrade\r\n"
@@ -221,14 +332,19 @@ a is probably text style
 bb foreground, cc background
 
 1; is brighter
+2; is dimmer
+22; is normal
 4; is underlined
 
     """
     return "\33[1;34;40m" + "HI" + "\33[0m"
 
-C_R = C_RED    = "\33[1;31;40m"
-C_G = C_GREEN  = "\33[1;32;40m"
-C_Y = C_YELLOW = "\33[1;33;40m"
-C_B = C_BLUE   = "\33[1;34;40m"
-C_P = C_PURPLE = "\33[1;35;40m"
-C_E = C_END    = "\33[0m"
+
+R = RED    = "\33[1;31;40m"
+G = GREEN  = "\33[1;32;40m"
+Y = YELLOW = "\33[1;33;40m"
+B = BLUE   = "\33[1;34;40m"
+P = PURPLE = "\33[1;35;40m"
+C = CYAN   = "\33[1;36;40m"
+W = WHITE   = "\33[1;37;40m"
+E = END    = "\33[0m"

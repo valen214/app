@@ -20,7 +20,7 @@ def main():
     
     _proc = subprocess.Popen(args)
     
-    watchlist = ["app.py"]
+    watchlist = ["app.py", "pages/util.py"]
     
     def info():
         info = {}
@@ -46,12 +46,12 @@ def main():
         while running:
             if changed():
                 print("====" * 20)
-                print("changes in app.py dectected. rebooting...")
-                print("====" * 20)
+                print("changes in watchlist dectected. rebooting...")
                 
                 _proc.kill()
                 _proc.wait() # return code
-                print(f"{'#'*16}return code: {_proc.returncode}")
+                print(f"return code: {_proc.returncode}")
+                print("====" * 20)
                 _proc = subprocess.Popen(args)
             time.sleep(5)
         

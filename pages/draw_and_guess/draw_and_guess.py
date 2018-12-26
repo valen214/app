@@ -7,20 +7,16 @@ import os
 import threading
 import socket
 import socketserver
-# import ssl
+import ssl
 import uuid
 
 # import pages.util
 # importlib.reload(pages.util)
-# from pages.util import (
-#     content_type, resolve_socket_handshake,
-#     encode_socket_data, decode_socket_data)
-
 from pages.util import (
-        content_type, resolve_socket_handshake,
+        content_type,
         encode_socket_data, decode_socket_data,
-        handle_websocket_message,
-        C_R, C_G, C_B, C_E
+        get_next_websocket_message, handle_sslsocket_handshake,
+        R, G, B, E
 )
 
 HOST, PORT = "0.0.0.0", 8001
@@ -38,7 +34,7 @@ def main_html(env, start_res):
         ])
         return content
 
-def static_file(name):
+def statifile(name):
     def file_handler(env, start_res):
         # print("HELO")
         with open(name, "r") as f:
@@ -115,15 +111,15 @@ def close(socket_id=None):
 
         s.close()
         del connected_sockets[socket_id]
-        print(f"socket#{C_G}{socket_id}{C_E} closed successfully")
+        print(f"socket#{G}{socket_id}{E} closed successfully")
 
     elif socket_id in connected_sockets:
         s = connected_sockets[socket_id]
         s.close()
         del connected_sockets[socket_id]
-        print(f"socket#{C_G}{socket_id}{C_E} closed successfully")
+        print(f"socket#{G}{socket_id}{E} closed successfully")
     else:
-        print(f"socket#{C_G}{socket_id}{C_E} closed already")
+        print(f"socket#{G}{socket_id}{E} closed already")
 
 def initializeDrawAndGuessApplication():
     def req_room_list(socket_id, o):
@@ -194,63 +190,64 @@ def main():
         socket_id = connected_sockets["count"]
         connected_sockets[socket_id] = client
 
-        d = client.recv(1024).strip()
-        print(f"socket#{C_G}{socket_id}{C_E} handshake")
 
         
         # print("HANDSHAKE HEADERS")
         # for line in data.split(b"\r\n"):
         #     print(line.decode("utf-8"))
 
-        client.sendall(resolve_socket_handshake(d))
-
-        d, r = None, b""
+        print(f"{' '*8}draw_and_guess.py:",
+                f"socket#{G}{socket_id}{E} handshake")
+        handle_sslsocket_handshake(client)
 
         while socket_id in connected_sockets:
-            if d:
-                r = d + r
-            else:
-                r += client.recv(8192)
-            d, r = decode_socket_data(r)
-            # if not d: continue
-            if d.encode("utf-8") == b'\x03\xc3\xa9' or not d:
-                print("socket#" + str(socket_id) +
+            d = get_next_websocket_message(client)
+            if not d:
+                print(f"socket#{G}{socket_id}{E}" +
                         " terminate singal received? exiting...")
                 break
-            print("RESOLVED DATA:", d)
-            o = json.loads(d)
-            o = data_handlers.get(o["request"],
-                    default_data_handler)(socket_id, o)
-            if o and isinstance(o, dict):
-                client.sendall(encode_socket_data(
-                        json.dumps(o, separators=(",", ":"))))
             try:
-                a, b = decode_socket_data(r)
-            except IndexError as ie:
-                if str(ie) == "index out of range":
-                    d = None
-            else:
-                d = a
-                r = b
-            
-        print(f"attempt to close socket#{C_G}{socket_id}{C_E}")
+                o = json.loads(d)
+                o = data_handlers.get(o["request"],
+                        default_data_handler)(socket_id, o)
+                if o and isinstance(o, dict): # returned value
+                    client.sendall(encode_socket_data(
+                            json.dumps(o, separators=(",", ":"))))
+            except json.decoder.JSONDecodeError:
+                print(f"{' '*8}draw_and_guess.py:",
+                        f"socket#{G}{socket_id}{E}:",
+                        f"data not in json format: {d}")
+
+        print(f"attempt to close socket#{G}{socket_id}{E}")
         close(socket_id)
     
     global PORT
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    valid = False
-    while (not valid) and PORT <= 8200:
-        try:
-            sock.bind((HOST, PORT))
-            valid = True
-        except OSError:
-            PORT += 1
-    sock.listen(5)
-    while running:
-        c, addr = sock.accept()
-        # c.settimeout(60)
-        threading.Thread(target=handle_socket, args=(c, addr)).start()
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        valid = False
+        while (not valid) and PORT <= 8200:
+            try:
+                sock.bind((HOST, PORT))
+                valid = True
+            except OSError:
+                PORT += 1
+            else:
+                print(f"{G}draw_and_guess.py: using PORT {PORT}{E}")
+        if not valid:
+            close()
+            raise Exception("invalid port range, socket creation failed")
+        sock.listen(5)
+
+        context = ssl.SSLContext(ssl._ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain('./data/cert_key.pem')
+        with context.wrap_socket(sock, server_side=True) as ssock:
+            while running:
+                c, addr = ssock.accept()
+                print(f"{' '*8}{G}draw_and_guess.py:",
+                        f"new connection at {addr}{E}")
+                # print(f"{' '*8}{G}draw_and_guess.py: type(c): {c}{E}")
+                # c.settimeout(60)
+                threading.Thread(target=handle_socket, args=(c, addr)).start()
 
     close()
 
@@ -263,13 +260,13 @@ def initialize(wsgi_application_handler):
     for regex, func in {
             "/(draw_and_guess/)?draw_and_guess(.html?)?": main_html,
             # "/(draw_and_guess/)?draw_and_guess\.css":
-            #         static_file("pages/draw_and_guess/draw_and_guess.css"),
+            #         statifile("pages/draw_and_guess/draw_and_guess.css"),
             "/(draw_and_guess/)?canvas.js":
-                    static_file("pages/draw_and_guess/canvas.js"),
+                    statifile("pages/draw_and_guess/canvas.js"),
             "/(draw_and_guess/)?util.js":
-                    static_file("pages/draw_and_guess/util.js"),
+                    statifile("pages/draw_and_guess/util.js"),
             "/(draw_and_guess/)?p2p.js":
-                    static_file("pages/draw_and_guess/p2p.js"),
+                    statifile("pages/draw_and_guess/p2p.js"),
     }.items():
         wsgi_application_handler.add("GET", regex, func)
 

@@ -6,7 +6,7 @@ import json
 import os
 import threading
 import socket
-# import ssl
+import ssl
 import time
 import uuid
 HOST, PORT = "0.0.0.0", 8001
@@ -14,10 +14,10 @@ HOST, PORT = "0.0.0.0", 8001
 # import pages.util
 # importlib.reload(pages.util)
 from pages.util import (
-        content_type, resolve_socket_handshake,
+        content_type,
         decode_socket_data, encode_socket_data,
-        handle_websocket_message,
-        C_R, C_G, C_B, C_E
+        handle_websocket_message, handle_sslsocket_handshake,
+        R, G, B, E
 )
 
     
@@ -36,10 +36,10 @@ def close():
 def main():
     def socket_signal(data, c):
         try:
-            data = data.decode("utf-8")
             if not data:
+                print(f"{' '*8}{B}webrtc.py: received empty data{E}")
                 return
-            o = json.loads(data, encoding="utf-8")
+            o = json.loads(data)
         except json.decoder.JSONDecodeError:
             print("\n" * 2 + "#" * 80)
             print("data not in json format:", data.hex())
@@ -52,7 +52,7 @@ def main():
             b'\x88\x805\xb3\x9a6'
             b'\x88\x80\x89\xb8#\xc3'
             """
-            print(f"socket#{C_B}{c.no}{C_E} not handled")
+            print(f"socket#{B}{c.no}{E} not handled")
             print("#" * 80)
             return
         
@@ -67,7 +67,7 @@ def main():
         elif o["type"] == "create_offer":
             print(f"create_offer {o['offerer_uuid']} => {o['receiver_uuid']}")
             assert c.uuid == o["offerer_uuid"]
-            print(f"client#{c.no} created offer")
+            print(f"client#{B}{c.no}{E} created offer")
             o["type"] = "receive_offer"
             try:
                 ClientSocket.getByUUID(o["receiver_uuid"]).sendObj(o)
@@ -79,7 +79,7 @@ def main():
                 })
         elif o["type"] == "created_answer":
             assert c.uuid == o["receiver_uuid"]
-            print(f"client#{c.no} created answer")
+            print(f"client#{B}{c.no}{E} created answer")
             o["type"] = "receive_answer"
             try:
                 ClientSocket.getByUUID(o["offerer_uuid"]).sendObj(o)
@@ -99,7 +99,7 @@ def main():
                     "response": "server"
                 })
 
-        return False
+        return c.alive
 
 
 
@@ -109,7 +109,7 @@ def main():
         UUID_TO_CLIENT = {}
 
         def __init__(self, client, address):
-            ClientSocket.count + 1
+            ClientSocket.count += 1
 
             self.client = client
             self.address = None
@@ -118,13 +118,6 @@ def main():
             # self.setUUID(str(uuid.uuid4()))
             self.no = ClientSocket.count
             self.alive = True
-
-
-        def handle_handshake(self):
-            # initial data for js WebSocket handshake
-            data = self.client.recv(1024)
-            print(f"socket#{C_B}{self.no}{C_E} handshake")
-            self.client.sendall(resolve_socket_handshake(data))
         
         def sendObj(self, obj):
             self.client.sendall(encode_socket_data(
@@ -137,8 +130,10 @@ def main():
                     self.deleteByAddress(self.address)
                 except Exception as e:
                     print(f"error in closing socket#{self.no}: {e}")
+                else:
+                    print(f"socket#{B}{self.no}{E} closed sucessfully")
             else:
-                print(f"socket#{C_B}{self.no}{C_E} already closed")
+                print(f"socket#{B}{self.no}{E} already closed")
         
         # getter and setter of address and uuid
         def setAddress(self, address, retry=True):
@@ -196,42 +191,52 @@ def main():
     def handle_socket(client, address):
         c = ClientSocket(client, address) # socket wrapper
         CLOSEABLE.add(c)
-        c.handle_handshake() # js WebSocket handshake
 
+
+        print(f"socket#{B}{c.no}{E} handshake")
+        handle_sslsocket_handshake(client)
+
+        # c.handle_handshake() # js WebSocket handshake
+        
         try:
-            while c.alive:
-                # handler of web rtc protocol
-                handle_websocket_message(client, socket_signal, c)
+            # handler of web rtc protocol
+            handle_websocket_message(client, socket_signal, c)
         except OSError as ose:
             print(repr(ose))
             print(str(ose) == "OSError(9, 'Bad file descriptor')")
-        print(f"socket#{C_B}{c.no}{C_E} closing...")
+        print(f"socket#{B}{c.no}{E} closing...")
         c.close()
     
     global PORT, server_socket
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    valid = False
-    while (not valid) and PORT <= 8200:
-        try:
-            server_socket.bind((HOST, PORT))
-            valid = True
-        except OSError:
-            PORT += 1
-    if valid:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        valid = False
+        while (not valid) and PORT <= 8200:
+            try:
+                server_socket.bind((HOST, PORT))
+                valid = True
+            except OSError:
+                PORT += 1
+            else:
+                print(f"{B}webrtc.py: using PORT {PORT}{E}")
+        if not valid:
+            close()
+            raise Exception("invalid port range, socket creation failed")
         CLOSEABLE.add(server_socket)
         socket.setdefaulttimeout(None)
         server_socket.listen()
-        while running:
-            c, addr = server_socket.accept()
-            print(f"{' '*8}new connection at {addr}")
-            CLOSEABLE.add(c)
-            # c.settimeout(60)
-            threading.Thread(target=handle_socket, args=(c, addr)).start()
+        
+        context = ssl.SSLContext(ssl._ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain('./data/cert_key.pem')
+        with context.wrap_socket(server_socket, server_side=True) as ssock:
+            while running:
+                c, addr = ssock.accept()
+                print(f"{' '*8}webrtf.py: new connection at {addr}")
+                CLOSEABLE.add(c)
+                # c.settimeout(60)
+                threading.Thread(target=handle_socket,
+                        args=(c, addr)).start()
         close()
-    else:
-        close()
-        raise Exception("invalid port range, socket creation failed")
 
 
 
@@ -248,17 +253,17 @@ def initialize(wsgi_application_handler):
     threading.Thread(target=main).start()
 
 
-    webrtc_js_path = "pages/webrtc/webrtc.js"
-    webrtc_js_last_modified = os.stat(webrtc_js_path).st_mtime
-    webrtc_js_cache = None
-    def webrtc_js(env, start_res):
-        nonlocal webrtc_js_cache
+    webrtjs_path = "pages/webrtc/webrtc.js"
+    webrtjs_last_modified = os.stat(webrtjs_path).st_mtime
+    webrtjs_cache = None
+    def webrtjs(env, start_res):
+        nonlocal webrtjs_cache
         # print("HELO")
-        if (not webrtc_js_cache) or (
-                webrtc_js_last_modified < os.stat(webrtc_js_path).st_mtime):
-            with open(webrtc_js_path, "r") as f:
-                webrtc_js_cache = f.read()
-        content = webrtc_js_cache.replace("<? PORT ?>", str(PORT))
+        if (not webrtjs_cache) or (
+                webrtjs_last_modified < os.stat(webrtjs_path).st_mtime):
+            with open(webrtjs_path, "r") as f:
+                webrtjs_cache = f.read()
+        content = webrtjs_cache.replace("<? PORT ?>", str(PORT))
         start_res("200 OK", [
                 ("Content-Type", content_type("webrtc.js")),
                 ("Content-Length", str(len(content)))
@@ -266,6 +271,6 @@ def initialize(wsgi_application_handler):
         return content
     
     for regex, func in {
-            "/(webrtc/)?webrtc(_peer)?(.js?)?": webrtc_js,
+            "/(webrtc/)?webrtc(_peer)?(.js?)?": webrtjs,
     }.items():
         wsgi_application_handler.add("GET", regex, func)

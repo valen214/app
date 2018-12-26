@@ -5,7 +5,7 @@
 <!--
 https://valen214.github.io/app/pages/draw_and_guess/draw_and_guess.htm
 -->
-<base href="http://ec2-18-222-252-221.us-east-2.compute.amazonaws.com:8129" />
+<base href="//ec2-18-222-252-221.us-east-2.compute.amazonaws.com:8129" />
 <link rel="stylesheet" href="draw_and_guess/draw_and_guess.css" />
 <style>
 body {
@@ -198,9 +198,12 @@ if(!parseInt(PORT)){ // not running on desired server
     document.getElementById("page-2").classList.add("show");
 }
 
-var server_socket_addr = "ws://" + window.location.hostname + ":" + PORT;
+var server_socket_addr = "wss://" + window.location.hostname + ":" + PORT;
 console.log("server socket addr:", server_socket_addr);
 const socket = new WebSocket(server_socket_addr);
+
+
+
 
 function sendObject(obj){
     console.log("%csending to server:", "color:blue", obj);
@@ -303,7 +306,9 @@ function StartRoom(o){
             uuid_to_name[o["src_uuid"]] = o["name"];
             uuid_to_conn[o["src_uuid"]] = this;
 
-            if(!game_info.current_drawer){
+            if(game_info.current_drawer){
+
+            } else{
                 var d = new Date();
                 d.setSeconds(d.getSeconds() + sec_before_round);
                 var begin_time = d.getTime();
@@ -315,6 +320,9 @@ function StartRoom(o){
                     "round_begin": begin_time,
                     "round_end": begin_time + sec_per_round * 1000,
                 });
+
+
+                
             }
 
             this.send(JSON.stringify({
@@ -559,6 +567,7 @@ function StartRoom(o){
 
 function initializeComponent(){
 
+    var room_started = false; // potentially making it global
     function buttonClicked(e){
         if(this.button_clicked){
             popup_message("loading");
@@ -579,6 +588,7 @@ function initializeComponent(){
             sendObject(req);
         }).then(o => {
             if(o["status"]){
+                room_started = true;
                 StartRoom(o);
                 this.button_clicked = null;
             } else{
@@ -596,6 +606,16 @@ function initializeComponent(){
             }
         }, 5000);
     }
+
+    function roomListRefresh(){
+        sendObject({
+            request: "room_list"
+        });
+        if(!room_started){
+            setTimeout(roomListRefresh, 5000);
+        }
+    }
+    setTimeout(roomListRefresh, 0);
 
     create_room.addEventListener("click", buttonClicked.bind({
             "button_clicked": false,
@@ -616,11 +636,7 @@ var CALLBACK = {};
 socket.addEventListener("open", function(e){
     // get room list
     Peer.log_level(0);
-    sendObject({
-        request: "room_list"
-    });
     initializeComponent();
-
 });
 socket.addEventListener("message", function(e){
     var obj = null;
@@ -646,8 +662,12 @@ socket.addEventListener("message", function(e){
     switch(obj["request"]){
     case "room_list":
         var room_list = document.getElementById("room_list");
+        var e;
+        while(e = room_list.lastChild){
+            room_list.removeChild(e);
+        }
         for(var l of obj["room_list"]){
-            var e = document.createElement("div");
+            e = document.createElement("div");
             e.innerHTML = `name: ${l[0]}; user count: ${l[1]}<br/>`;
             room_list.appendChild(e);
         }
