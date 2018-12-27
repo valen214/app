@@ -5,7 +5,14 @@
 <!--
 https://valen214.github.io/app/pages/draw_and_guess/draw_and_guess.htm
 -->
-<base href="//ec2-18-222-252-221.us-east-2.compute.amazonaws.com:8129" />
+<base href="//ec2-18-222-252-221.us-east-2.compute.amazonaws.com" />
+<script>
+var port = location.port;
+if(port){
+    var b = document.querySelector("base");
+    b.href = b.href + ":" + port;
+}
+</script>
 <link rel="stylesheet" href="draw_and_guess/draw_and_guess.css" />
 <style>
 body {
@@ -193,14 +200,15 @@ function hideOverlay(){
 
 
 var PORT = "<? PORT ?>";
-if(!parseInt(PORT)){ // not running on desired server
+var socket = null;
+if(parseInt(PORT)){
+    var server_socket_addr = "wss://" + window.location.hostname + ":" + PORT;
+    console.log("server socket addr:", server_socket_addr);
+    socket = new WebSocket(server_socket_addr);
+} else { // not running on desired server
     document.getElementById("page-1").classList.remove("show");
     document.getElementById("page-2").classList.add("show");
 }
-
-var server_socket_addr = "wss://" + window.location.hostname + ":" + PORT;
-console.log("server socket addr:", server_socket_addr);
-const socket = new WebSocket(server_socket_addr);
 
 
 
@@ -222,13 +230,13 @@ const CANVAS_CONFIG = {
     "strokeStyle": "random",
     "lineWidth": 5,
 };
-
+var room_name, user_uuid, user_name, user_list, peer;
 function StartRoom(o){
-    const room_name = o["room_name"];
-    const user_uuid = o["user_uuid"];
-    const user_name = o["user_name"];
-    const user_list = o["user_list"];
-    const peer = new Peer(user_uuid);
+    room_name = o["room_name"];
+    user_uuid = o["user_uuid"];
+    user_name = o["user_name"];
+    user_list = o["user_list"];
+    peer = new Peer(user_uuid);
     var color = randomColor((Math.random() + 0.6180339)%1);
     var game_info = {
         "current_drawer": null,
@@ -633,6 +641,10 @@ function initializeComponent(){
 
 
 var CALLBACK = {};
+new Promise(resolve => {
+    if(socket) resolve();
+}).then(() => {
+
 socket.addEventListener("open", function(e){
     // get room list
     Peer.log_level(0);
@@ -685,6 +697,7 @@ socket.addEventListener("message", function(e){
 
 });
 
+});
 
 });
 </script>

@@ -1,4 +1,4 @@
-#!/bin/python
+#!/bin/python3
 
 """
 What app.py does:
@@ -21,6 +21,10 @@ https://stackoverflow.com/questions/287871/print-in-terminal-with-colors
 
 aws ec2: get public ip
 curl http://169.254.169.254/latest/meta-data/public-ipv4
+
+
+https://www.sslforfree.com/create?
+domains=ec2-18-222-252-221.us-east-2.compute.amazonaws.com
 
 """
 
@@ -158,8 +162,9 @@ class WSGIApplicationHandler:
             for m, regex, func in self.__handlers[method]:
                 if regex.match(path):
                     if not path in excluded_info:
-                        print(f'{" "*8}"{method} {path}" => <module {m}> ' +
-                            f'r"{regex.pattern}", {func.__name__}()')
+                        print(f'{" "*8}"{method} {path}"')
+                        print(f'{" "*16}=> r"{regex.pattern}"')
+                        print(f'{" "*16}=> <module {m}>.{func.__name__}() ')
                     content = func(env, start_res) or ""
                     return content
             print(f'{" " * 8}"{method} {path}" did not match any handler, '
@@ -368,21 +373,33 @@ def main():
     print(f"public ip: {proc.communicate()[0].decode('utf-8')}")
 
 
-    USE_HTTPS = True
-    try:
-        server_address = ("0.0.0.0", 8129)
-        server = HTTPServer(server_address, HTTPRequestHandler)
-        if USE_HTTPS:
+    def start_server(address, port, use_https=False):
+        server = HTTPServer((address, port), HTTPRequestHandler)
+        if use_https:
             ctx = ssl.SSLContext(ssl._ssl.PROTOCOL_TLS_SERVER)
             ctx.load_cert_chain('./data/cert_key.pem')
             server.socket = ctx.wrap_socket(server.socket, server_side=True)
-        print("server listening at {}:{}".format(*server_address))
-        server.serve_forever()
-    except KeyboardInterrupt as ki:
-        print(ki)
 
-    server.server_close()
-    print("program exit")
+        print(f"{'https' if use_https else 'http'}",
+                f"server listening at {address}:{port}")
+
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            # print(ki)
+            pass
+        server.server_close()
+
+    t1 = threading.Thread(target=start_server, args=("0.0.0.0", 80, False))
+    t2 = threading.Thread(target=start_server, args=("0.0.0.0", 8129, True))
+
+    t1.start()
+    t2.start()
+
+    t1.join()
+    t2.join()
+
+    print(f"{R}program exit{E}")
 
 if __name__ == "__main__":
     main()
