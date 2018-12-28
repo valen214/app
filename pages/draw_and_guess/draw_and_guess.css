@@ -104,12 +104,18 @@ div[id^="page-"][class~="show"] {
     background: rgba(108, 116, 142, 0.2);
     position: absolute;
 }
-#page2_overlay {
-    display: inline-block;
+#page2_overlay_container > div {
+    display: none;
     position: relative;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+}
+#page2_overlay_pickword_word0,
+#page2_overlay_pickword_word1,
+#page2_overlay_pickword_word2 {
+    cursor: pointer;
+    text-decoration: underline;
 }
 #page2_canvas {
     background: white;

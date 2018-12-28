@@ -15,7 +15,7 @@ import uuid
 from pages.util import (
         content_type,
         encode_socket_data, decode_socket_data,
-        get_next_websocket_message, handle_sslsocket_handshake,
+        get_next_websocket_message, handle_socket_handshake,
         R, G, B, E
 )
 
@@ -34,7 +34,7 @@ def main_html(env, start_res):
         ])
         return content
 
-def statifile(name):
+def static_file(name):
     def file_handler(env, start_res):
         # print("HELO")
         with open(name, "r") as f:
@@ -198,7 +198,7 @@ def main():
 
         print(f"{' '*8}draw_and_guess.py:",
                 f"socket#{G}{socket_id}{E} handshake")
-        handle_sslsocket_handshake(client)
+        handle_socket_handshake(client)
 
         while socket_id in connected_sockets:
             d = get_next_websocket_message(client)
@@ -260,13 +260,13 @@ def initialize(wsgi_application_handler):
     for regex, func in {
             "/(draw_and_guess/)?draw_and_guess(.html?)?": main_html,
             # "/(draw_and_guess/)?draw_and_guess\.css":
-            #         statifile("pages/draw_and_guess/draw_and_guess.css"),
+            #         static_file("pages/draw_and_guess/draw_and_guess.css"),
             "/(draw_and_guess/)?canvas.js":
-                    statifile("pages/draw_and_guess/canvas.js"),
+                    static_file("pages/draw_and_guess/canvas.js"),
             "/(draw_and_guess/)?util.js":
-                    statifile("pages/draw_and_guess/util.js"),
+                    static_file("pages/draw_and_guess/util.js"),
             "/(draw_and_guess/)?p2p.js":
-                    statifile("pages/draw_and_guess/p2p.js"),
+                    static_file("pages/draw_and_guess/p2p.js"),
     }.items():
         wsgi_application_handler.add("GET", regex, func)
 

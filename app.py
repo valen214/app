@@ -372,7 +372,7 @@ def main():
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(f"public ip: {proc.communicate()[0].decode('utf-8')}")
 
-
+    s = []
     def start_server(address, port, use_https=False):
         server = HTTPServer((address, port), HTTPRequestHandler)
         if use_https:
@@ -384,20 +384,25 @@ def main():
                 f"server listening at {address}:{port}")
 
         try:
+            s.append(server)
             server.serve_forever()
         except KeyboardInterrupt:
             # print(ki)
             pass
-        server.server_close()
+        for a in s:
+            a.server_close()
 
-    t1 = threading.Thread(target=start_server, args=("0.0.0.0", 80, False))
-    t2 = threading.Thread(target=start_server, args=("0.0.0.0", 8129, True))
+    l = []
+    for t in [
+        ("0.0.0.0", 80, False),
+        # ("0.0.0.0", 443, True),
+        ("0.0.0.0", 8129, True),
+    ]:
+        l.append(threading.Thread(target=start_server, args=t))
+        l[-1].start()
 
-    t1.start()
-    t2.start()
-
-    t1.join()
-    t2.join()
+    for t in l:
+        l[-1].join()
 
     print(f"{R}program exit{E}")
 

@@ -39,7 +39,13 @@ body {
     <div id="page2_container">
         <div id="page2_canvas_container">
             <div id="page2_overlay_container">
-                <div id="page2_overlay"></div>
+                <div id="page2_overlay_plaintext"></div>
+                <div id="page2_overlay_pickword">
+                    <div id="page2_overlay_pickword_label"></div>
+                    <div id="page2_overlay_pickword_word0"></div>
+                    <div id="page2_overlay_pickword_word1"></div>
+                    <div id="page2_overlay_pickword_word2"></div>
+                </div>
             </div>
             <canvas id="page2_canvas"></canvas>
         </div>
@@ -80,8 +86,14 @@ c.on("strokestart", function(action){
 
 for(var id of [
         "user_name", "room_id", "join_room", "create_room", "room_list",
-        "page2_overlay_container", "page2_overlay", "page2_canvas",
-        "page2_color_button", "page2_color_plate",
+        "page2_overlay_container",
+        "page2_overlay_plaintext",
+        "page2_overlay_pickword",
+        "page2_overlay_pickword_label",
+        "page2_overlay_pickword_word0",
+        "page2_overlay_pickword_word1",
+        "page2_overlay_pickword_word2",
+        "page2_canvas", "page2_color_button", "page2_color_plate",
         "page2_room_info", "page2_chat_room", "page2_chat_input",
 ]){
     eval(`var ${id} = document.getElementById("${id}");`);
@@ -124,7 +136,18 @@ initializePlateColors();
 function count(){
     return count.i ? ++count.i : count.i = 1;
 }
-
+function randomWords(count=1){
+    return [
+        "a", "b", "c", "d", "e", "f", "g", "h"
+    ].reduce((acc, cur, i, src) => {
+        if(count - acc.length >= src.length - i){
+            acc.push(cur);
+        } else if(Math.random() < 0.5){
+            acc.push(cur);
+        }
+        return acc;
+    }, []);
+}
 function popup_message(msg="", duration=500){
     if(msg) message.innerHTML = msg;
     message.classList.remove("hide");
@@ -169,31 +192,6 @@ function print_chat(html_src){
         }
     }
 }
-function showOverlay(type, ...args){
-    switch(type){
-    case "round_begin_countdown":
-        var begin = args[0];
-        var remaining = begin - Date.now();
-        if(remaining > 0){
-            page2_overlay_container.style.display = "block";
-            page2_overlay.innerText = `round begin in ${
-                parseInt(remaining / 1000)} seconds`;
-            setTimeout(showOverlay, Math.min(1000, remaining),
-                    "round_begin_countdown", begin);
-        } else{
-            hideOverlay();
-        }
-        break;
-    case "pick_word":
-        
-        break;
-    default:
-        console.error("invalid overlay type:", type);
-    }
-}
-function hideOverlay(){
-    page2_overlay_container.style.display = "none";
-}
 
 
 
@@ -202,7 +200,8 @@ function hideOverlay(){
 var PORT = "<? PORT ?>";
 var socket = null;
 if(parseInt(PORT)){
-    var server_socket_addr = "wss://" + window.location.hostname + ":" + PORT;
+    var server_socket_addr = "wss://" +
+            window.location.hostname + ":" + PORT;
     console.log("server socket addr:", server_socket_addr);
     socket = new WebSocket(server_socket_addr);
 } else { // not running on desired server
@@ -231,6 +230,16 @@ const CANVAS_CONFIG = {
     "lineWidth": 5,
 };
 var room_name, user_uuid, user_name, user_list, peer;
+var sec_before_round = 3;
+var sec_pick_word = 15;
+var sec_guess = 60;
+const game_info = Object.preventExtensions({
+    "current_drawer": null,
+    "round_begin": null,
+    "pick_word_end": null,
+    "guess_end": null,
+    "picked_word": null,
+});
 function StartRoom(o){
     room_name = o["room_name"];
     user_uuid = o["user_uuid"];
@@ -238,13 +247,6 @@ function StartRoom(o){
     user_list = o["user_list"];
     peer = new Peer(user_uuid);
     var color = randomColor((Math.random() + 0.6180339)%1);
-    var game_info = {
-        "current_drawer": null,
-        "round_begin": null,
-        "round_end": null,
-    };
-    var sec_before_round = 3;
-    var sec_per_round = 60;
 
     const uuid_to_name = {};
     const uuid_to_conn = {};
@@ -269,25 +271,6 @@ function StartRoom(o){
     
 
 
-    function processGameInfo(action, info){
-        console.log("processGameInfo", info);
-        switch(action){
-        case "join_room":
-            game_info.current_drawer = info.current_drawer;
-            game_info.round_begin = parseInt(info.round_begin);
-            game_info.round_end = parseInt(info.round_end);
-
-            if(game_info.current_drawer != user_uuid){
-                page2_canvas.style.pointerEvents = "none";
-            }
-
-            showOverlay("round_begin_countdown", game_info.round_begin);
-
-            break;
-        default:
-            console.error("invalid action");
-        }
-    }
 
 
     print_info(`You("${spanTextWithColor(user_name, color)
@@ -314,34 +297,20 @@ function StartRoom(o){
             uuid_to_name[o["src_uuid"]] = o["name"];
             uuid_to_conn[o["src_uuid"]] = this;
 
-            if(game_info.current_drawer){
-
-            } else{
-                var d = new Date();
-                d.setSeconds(d.getSeconds() + sec_before_round);
-                var begin_time = d.getTime();
-
-                console.log("SENNDING BEING_TIME:", begin_time);
-
-                Object.assign(game_info, {
-                    "current_drawer": user_uuid,
-                    "round_begin": begin_time,
-                    "round_end": begin_time + sec_per_round * 1000,
-                });
-
-
-                
-            }
-
             this.send(JSON.stringify({
                 "type": "joined_room_feedback",
                 "src_uuid": user_uuid,
                 "target_uuid": o["src_uuid"],
                 "room_name": room_name,
                 "name": user_name,
-
-                "info": game_info,
             }));
+
+            if(game_info.current_drawer){
+
+            } else{ // starts a round
+                start_round({current_drawer: user_uuid});
+            }
+
             break;
         case "joined_room_feedback":
             console.assert(o["room_name"] == room_name);
@@ -349,10 +318,15 @@ function StartRoom(o){
             console.assert(uuid_to_conn[o["src_uuid"]] === this);
             console.assert(o["target_uuid"] === user_uuid);
             uuid_to_name[o["src_uuid"]] = o["name"];
-
-            processGameInfo("join_room", o.info);
-
             break;
+
+        case "start_round":
+        case "start_pick_word":
+        case "picked_word":
+            start_round(o);
+            break;
+
+
         case "canvas_strokestart":
             var src_uuid = o["src_uuid"];
             console.assert(src_uuid != user_uuid);
@@ -497,7 +471,7 @@ function StartRoom(o){
     }).on("strokeend", function(action){
 
     }).on("clear", function(action){
-        sendToEveryOne(JSON.stringify({
+        (JSON.stringify({
                 "type": "canvas_clear",
                 "src_uuid": user_uuid,
         }));
@@ -536,13 +510,14 @@ function StartRoom(o){
                 c.do("clear");
                 break;
             case "/color":
+                let s = document.head.style;
                 CANVAS_CONFIG.strokeStyle = (
                     input.slice(7) === "random" ? "random" : [
-                        document.head.style.color = "#000",
-                        document.head.style.color = CANVAS_CONFIG.strokeStyle,
-                        document.head.style.color = input.slice(6),
-                        document.head.style.color
-                ][4]);
+                        s.color = "#000",
+                        s.color = CANVAS_CONFIG.strokeStyle,
+                        s.color = input.slice(6),
+                        s.color
+                ][3]);
                 break;
             case "/size":
                 CANVAS_CONFIG.lineWidth = (
@@ -570,6 +545,231 @@ function StartRoom(o){
      * 
      */
 }
+var showOverlay_waiting_callback_id;
+var showOverlay_pickword_setinterval_id;
+function showOverlay(type, ...args){
+    switch(type){
+    case "round_begin_countdown":
+        var remaining = game_info.round_begin - Date.now();
+        if(remaining > 0){
+            if(!args[0]){
+                page2_overlay_container.style.display = "block";
+                page2_overlay_plaintext.style.display = "inline-block";
+                if(showOverlay_waiting_callback_id){
+                    clearTimeout(showOverlay_waiting_callback_id);
+                }
+            }
+            page2_overlay_plaintext.innerText = `round begin in ${
+                parseInt(remaining / 1000)} seconds`;
+            showOverlay_waiting_callback_id = setTimeout(
+                    showOverlay, Math.min(1000, remaining),
+                    "round_begin_countdown", true);
+        } else{
+            showOverlay_waiting_callback_id = 0;
+            hideOverlay();
+        }
+        break;
+    case "wait_picking_word":
+        var remaining = game_info.pick_word_end - Date.now();
+        if(remaining > 0){
+            if(!args[0]){
+                page2_overlay_container.style.display = "block";
+                page2_overlay_plaintext.style.display = "inline-block";
+                if(showOverlay_waiting_callback_id){
+                    clearTimeout(showOverlay_waiting_callback_id);
+                }
+            }
+            page2_overlay_plaintext.innerText = `drawer picking word: ${
+                parseInt(remaining / 1000)} seconds remaining`;
+            showOverlay_waiting_callback_id = setTimeout(
+                    showOverlay, Math.min(1000, remaining),
+                    "wait_picking_word", true);
+        } else{
+            showOverlay_waiting_callback_id = 0;
+            hideOverlay();
+        }
+        break;
+    case "pick_word":
+        // args: [callback, word0, word1, word2, <initial>]
+
+        if(!args[1]){
+            [args[1], args[2], args[3]] = randomWords(3);
+            
+            const __func = args[0];
+            args[0] = (o) => {
+                clearInterval(showOverlay_pickword_setinterval_id);
+                clearTimeout(showOverlay_pickword_setinterval_id);
+                showOverlay_pickword_setinterval_id = 0;
+                hideOverlay();
+                if(typeof o === "string"){
+                    __func(o);
+                } else{
+                    __func(o.target.innerText);
+                }
+            };
+
+        }
+
+        var remaining = game_info.pick_word_end - Date.now();
+        if(remaining > 1000){
+            if(!args[4]){
+                page2_overlay_container.style.display = "block";
+                page2_overlay_pickword.style.display = "inline-block";
+
+                for(var [i, elem] of [
+                        page2_overlay_pickword_word0,
+                        page2_overlay_pickword_word1,
+                        page2_overlay_pickword_word2,
+                ].entries()){
+                    elem.innerText = args[i+1];
+                    elem.onclick = args[0];
+                }
+
+                showOverlay_pickword_setinterval_id = setInterval(
+                    showOverlay, 1000, "pick_word", ...args, true);
+            }
+            page2_overlay_pickword_label.innerHTML = (
+`you have ${parseInt(remaining / 1000)} seconds to pick a word:`);
+
+        } else if(remaining < 1000){
+            clearInterval(showOverlay_pickword_setinterval_id);
+            showOverlay_pickword_setinterval_id = setTimeout(
+                showOverlay, 1000, "pick_word", ...args);
+        } else{
+            args[0](args.slice(1, 4)[Math.floor(Math.random())]);
+            hideOverlay();
+        }
+        break;
+    default:
+        console.error("invalid overlay type:", type);
+    }
+}
+function hideOverlay(){
+    page2_overlay_container.style.display = "none";
+    page2_overlay_plaintext.style.display = "none";
+    page2_overlay_pickword.style.display = "none";
+}
+function pick_word(word){
+    var begin_time = Date.now();
+
+    var o = {
+        "current_drawer": game_info.current_drawer,
+        "round_begin": begin_time,
+        "pick_word_end": begin_time,
+        "guess_end": begin_time + sec_guess * 1000,
+        "picked_word": word,
+    };
+
+    Object.assign(game_info, o);
+
+    o["type"] = "picked_word";
+    sendToEveryOne(o);
+}
+function start_round({
+    current_drawer,
+    round_begin,
+    pick_word_end,
+    guess_end,
+} = {}){
+
+    if(user_uuid == current_drawer){
+        var d = new Date();
+        d.setSeconds(d.getSeconds() + sec_before_round);
+        var begin_time = d.getTime();
+
+        console.log("SENNDING BEING_TIME:", begin_time);
+        var o = {
+            "current_drawer": current_drawer,
+            "round_begin": begin_time,
+            "pick_word_end": begin_time + sec_pick_word * 1000,
+            "guess_end": begin_time + (sec_pick_word + sec_guess) * 1000,
+        };
+        Object.assign(game_info, o);
+
+        showOverlay("round_begin_countdown");
+        setTimeout(() => {
+            showOverlay("pick_word", pick_word);
+            o["type"] = "start_pick_word";
+            sendToEveryOne(o);
+        }, sec_before_round * 1000);
+
+        o["type"] = "start_round";
+        sendToEveryOne(o);
+    } else{
+        page2_canvas.style.pointerEvents = "none";
+        Object.assign(game_info, {
+            "current_drawer": current_drawer,
+            "round_begin": round_begin,
+            "pick_word_end": pick_word_end,
+            "guess_end": guess_end,
+        });
+        if(Date.now() < round_begin){
+            showOverlay("round_begin_countdown");
+        } else if(Date.now() < pick_word_end){
+            showOverlay("wait_picking_word");
+        }
+    }
+}
+
+
+var CALLBACK = {};
+new Promise(resolve => {
+    if(socket) resolve();
+}).then(() => {
+
+socket.addEventListener("open", function(e){
+    // get room list
+    Peer.log_level(0);
+    initializeComponent();
+});
+socket.addEventListener("message", function(e){
+    var obj = null;
+    try{
+        obj = JSON.parse(e.data);
+    } catch(e){}
+    if(!obj) return;
+
+    console.log("%cmsg from server:", "color:red", obj);
+    console.assert([undefined, "server", "peer"].includes(obj["response"]));
+
+    function doCallback(request, o){
+        var q = CALLBACK[o["callback"]];
+        if(typeof q === "function"){
+            delete CALLBACK[o["callback"]];
+            q(o);
+        } else{
+            console.error("no callback registered for",
+                    `${obj.type}: ${obj.callback}`);
+        }
+    }
+
+    switch(obj["request"]){
+    case "room_list":
+        var room_list = document.getElementById("room_list");
+        var e;
+        while(e = room_list.lastChild){
+            room_list.removeChild(e);
+        }
+        for(var l of obj["room_list"]){
+            e = document.createElement("div");
+            e.innerHTML = `name: ${l[0]}; user count: ${l[1]}<br/>`;
+            room_list.appendChild(e);
+        }
+        break;
+    case "create_room":
+    case "join_room":
+        doCallback(obj["request"], obj);
+        break;
+    case "leave_room":
+        leaveRoomHandler(obj);
+        break;
+    default:
+        console.log("unhandled response:", obj);
+    }
+
+});
+
+});
 
 
 
@@ -638,66 +838,6 @@ function initializeComponent(){
             "timeout_msg": "callback not yet received, join room halted",
     }));
 }
-
-
-var CALLBACK = {};
-new Promise(resolve => {
-    if(socket) resolve();
-}).then(() => {
-
-socket.addEventListener("open", function(e){
-    // get room list
-    Peer.log_level(0);
-    initializeComponent();
-});
-socket.addEventListener("message", function(e){
-    var obj = null;
-    try{
-        obj = JSON.parse(e.data);
-    } catch(e){}
-    if(!obj) return;
-
-    console.log("%cmsg from server:", "color:red", obj);
-    console.assert([undefined, "server", "peer"].includes(obj["response"]));
-
-    function doCallback(request, o){
-        var q = CALLBACK[o["callback"]];
-        if(typeof q === "function"){
-            delete CALLBACK[o["callback"]];
-            q(o);
-        } else{
-            console.error("no callback registered for",
-                    `${obj.type}: ${obj.callback}`);
-        }
-    }
-
-    switch(obj["request"]){
-    case "room_list":
-        var room_list = document.getElementById("room_list");
-        var e;
-        while(e = room_list.lastChild){
-            room_list.removeChild(e);
-        }
-        for(var l of obj["room_list"]){
-            e = document.createElement("div");
-            e.innerHTML = `name: ${l[0]}; user count: ${l[1]}<br/>`;
-            room_list.appendChild(e);
-        }
-        break;
-    case "create_room":
-    case "join_room":
-        doCallback(obj["request"], obj);
-        break;
-    case "leave_room":
-        leaveRoomHandler(obj);
-        break;
-    default:
-        console.log("unhandled response:", obj);
-    }
-
-});
-
-});
 
 });
 </script>

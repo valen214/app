@@ -16,7 +16,7 @@ HOST, PORT = "0.0.0.0", 8001
 from pages.util import (
         content_type,
         decode_socket_data, encode_socket_data,
-        handle_websocket_message, handle_sslsocket_handshake,
+        handle_websocket_message, handle_socket_handshake,
         R, G, B, E
 )
 
@@ -43,15 +43,6 @@ def main():
         except json.decoder.JSONDecodeError:
             print("\n" * 2 + "#" * 80)
             print("data not in json format:", data.hex())
-            """
-            b'\x88\x82\xea\xdd\xd5\x99\xe94'
-            b'\x88\x82M\x86K\xe7No'
-            b"\x88\x82$\xafF\xf0'F"
-            b'\x88\x82\xe9Qp\xee\xea\xb8'
-            
-            b'\x88\x805\xb3\x9a6'
-            b'\x88\x80\x89\xb8#\xc3'
-            """
             print(f"socket#{B}{c.no}{E} not handled")
             print("#" * 80)
             return
@@ -194,7 +185,7 @@ def main():
 
 
         print(f"socket#{B}{c.no}{E} handshake")
-        handle_sslsocket_handshake(client)
+        handle_socket_handshake(client)
 
         # c.handle_handshake() # js WebSocket handshake
         

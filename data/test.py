@@ -2,6 +2,19 @@
 import socket
 import ssl
 import threading
+import functools
+
+
+def randomWords(count=1):
+    functools.reduce(
+        lambda a, b: a + [b]
+    , [
+        "a", "b", "c", "d", "e", "f", "g", "h"
+    ], [])
+    
+
+
+
 
 def socket_listener(c, addr):
     data = c.recv(4096)

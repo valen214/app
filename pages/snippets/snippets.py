@@ -14,6 +14,14 @@ def static_file(static_path):
     return static_file
 
 
+def status(env, start_res):
+    start_res("200 OK", [
+        ("Content-Type", "text/plain; charset=utf-8"),
+        ("Content-Length", "0")
+    ])
+    return ""
+
+
 
 def initialize(wsgi_application_handler):
     for regex, func in {
@@ -21,5 +29,6 @@ def initialize(wsgi_application_handler):
                     static_file(""),
             r"/snippets?/pointer(_event)?(\.html?)?":
                     static_file("pages/snippets/pointer_event.htm"),
+            r"/status": status,
     }.items():
         wsgi_application_handler.add("GET", regex, func)

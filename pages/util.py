@@ -206,7 +206,7 @@ def encode_socket_data(message):
 
 
 # data in bytes, return bytes
-def handle_sslsocket_handshake(socket):
+def handle_socket_handshake(socket):
     """
     https://stackoverflow.com/questions/7000885/
     python-is-there-a-good-way-to-check-if-text-is-encrypted
@@ -214,7 +214,6 @@ def handle_sslsocket_handshake(socket):
 
     data = socket.recv(4096)
 
-    sec_websocket_key = None
     try:
         # print(f"{G}data received:{data.hex()}{E}")
         data.decode("utf-8")
@@ -277,6 +276,7 @@ SSFKSJ_7.1.0/com.ibm.mq.doc/sy10660_.htm
         print(f"{G}decrypted data:{data}{E}")
 
 
+    sec_websocket_key = None
     # print("="*80)
     for line in data.split(b"\r\n"):
         # print(line.decode("utf-8"))
@@ -323,6 +323,7 @@ WEBSOCKET_HANDSHAKE_RESPONSE_HEANDER = (
 def C(foreground, background=None):
     """
 https://stackoverflow.com/questions/287871/print-in-terminal-with-colors
+https://en.wikipedia.org/wiki/ANSI_escape_code
 
 a;bb;ccm
 
@@ -346,5 +347,5 @@ Y = YELLOW = "\33[1;33;40m"
 B = BLUE   = "\33[1;34;40m"
 P = PURPLE = "\33[1;35;40m"
 C = CYAN   = "\33[1;36;40m"
-W = WHITE   = "\33[1;37;40m"
+W = WHITE  = "\33[1;37;40m"
 E = END    = "\33[0m"
