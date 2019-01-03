@@ -173,26 +173,23 @@ HTML.initializeRoomButtons = function(){
 
 GAME.canvas = new CustomAnimatedCanvas(HTML.get("page2_canvas"));
 GAME.startRoom = function(o){
-    ROOM.name = o["room_name"];
-    ROOM.list = o["user_list"];
-
     ROOM.initialize(o["room_name"], o["user_list"]);
     PLAYER.initialize(o["user_uuid"], o["user_name"]);
-    COMM.initializeP2P();
+    COMM.initializeP2P(); // COMM init has to be last
+
+    COMM.sendToEveryOne(JSON.stringify({
+            "type": "join_room",
+            "src_uuid": PLAYER.uuid,
+            "name": PLAYER.name,
+            "color": PLAYER.color,
+    }));
 
     HTML.printInfo("");
 };
+// https://www.w3.org/TR/webdatabase/#databases
 ROOM.initialize = function(name, user_list){
     ROOM.name = name;
-    // https://www.w3.org/TR/webdatabase/#databases
-    ROOM.db = openDatabase("db", "1.0", "description", 2 * 1024 * 1024);
-    ROOM.db.transaction(function(tx){
-        tx.executeSql(`CREATE TABLE IF NOT EXISTS users (
-            uuid varchar(36) PRIMARY KEY,
-            name varchar(255),
-        );`);
-    });
-
+    ROOM.list = user_list;
 };
 PLAYER.initialize = function(uuid, name){
     PLAYER.uuid = uuid;
@@ -200,22 +197,73 @@ PLAYER.initialize = function(uuid, name){
     PLAYER.color = randomColor((Math.random() + 0.618034) % 1);
 }
 
+
+
 COMM.peer_uuid_to_connection = {};
+COMM.peer_message_listeners = {};
+COMM.onPeerConnectionOpen = function(pc){};
+COMM.onMessageFromPeer = function(e){
+    var msg = null;
+    try{
+        msg = JSON.parse(e.data);
+    } catch(e){
+        console.error(e);
+    }
+    if(!msg) return;
+
+    let unhandled = true;
+
+    if(msg.type in COMM.peer_message_listeners){
+        console.log("%creceiving from server:", "color:red", msg);
+        let listeners = COMM.peer_message_listeners[msg.type];
+        let i = listeners.length;
+        if(i > 0){
+            unhandled = false;
+        }
+        while(i--){
+            let [func, options] = listeners[i];
+            func(msg);
+            if(options.once){
+                listeners.splice(i, 1);
+            }
+        }
+    }
+
+    if(unhandled){
+        console.log("%cunhandled message from server", "color:red", msg);
+    }
+};
+COMM.addPeerMessageListener = function(type, func, options = {
+    once: false
+}){
+    if(type in COMM.server_message_listeners){
+        COMM.server_message_listeners[type].push([func, options]);
+    } else{
+        COMM.server_message_listeners[type] = [[func, options]];
+    }
+};
 COMM.initializeP2P = function(){
     Peer.log_level(0);
     PLAYER.peer = new Peer(PLAYER.uuid);
 
     for(let uuid of ROOM.list){
         if(uuid == PLAYER.uuid) continue;
-        COMM.peer_uuid_to_connection[uuid] = peer.connect(uuid);
+        let pc = PLAYER.peer.connect(target_uuid);
+        pc.on("open", COMM.onPeerConnectionOpen);
+        pc.on("message", COMM.onMessageFromPeer);
+        COMM.peer_uuid_to_connection[target_uuid] = pc;
+    }
+};
+COMM.sendToEveryOne = function(message){
+    for(let pc of COMM.peer_uuid_to_connection){
+        pc.send(message);
     }
 };
 
-
-// both listener must be placed before server_socket creation
+COMM.server_socket = null;
+COMM.server_message_listeners = {};
 COMM.onServerSocketOpen = function(e){
-    HTML.initializeRoomButtons();
-    HTML.startRefreshingRoomList();
+    throw new Error("unimplemented");
 };
 COMM.onMessageFromServer = function(e){
     var msg = null;
@@ -248,21 +296,6 @@ COMM.onMessageFromServer = function(e){
         console.log("%cunhandled message from server", "color:red", msg);
     }
 };
-COMM.server_socket = (function(port){
-    if(parseInt(port)){
-        let server_socket_addr = `wss://${window.location.hostname}:${port}`;
-        console.log("server socket address:", server_socket_addr);
-
-        let s = new WebSocket(server_socket_addr)
-        s.addEventListener("open", COMM.onServerSocketOpen);
-        s.addEventListener("message", COMM.onMessageFromServer);
-
-        return s;
-    }
-    return null;
-})("<? PORT ?>");
-
-COMM.server_message_listeners = {};
 COMM.addServerMessageListener = function(type, func, options = {
     once = false,
 }){
@@ -272,7 +305,18 @@ COMM.addServerMessageListener = function(type, func, options = {
         COMM.server_message_listeners[type] = [[func, options]];
     }
 };
+COMM.initializeServerSocket = function(port){
+    if(parseInt(port)){
+        let server_socket_addr = `wss://${window.location.hostname}:${port}`;
+        console.log("server socket address:", server_socket_addr);
 
+        let s = new WebSocket(server_socket_addr)
+        s.addEventListener("open", COMM.onServerSocketOpen);
+        s.addEventListener("message", COMM.onMessageFromServer);
+
+        COMM.server_socket = s;
+    }
+};
 COMM.sendToServer = function(msg){
     console.log("%csending to server:", "color:blue", msg);
     if(typeof msg === "object"){
@@ -281,10 +325,20 @@ COMM.sendToServer = function(msg){
     COMM.server_socket.send(msg);
 };
 
-if(!COMM.server_socket){
-    HTML.get("page-1").classList.remove("show");
-    HTML.get("page-2").classList.add("show");
-}
+
+
+window.addEventListener("load", function(){
+    COMM.onServerSocketOpen = function(){
+        HTML.initializeRoomButtons();
+        HTML.startRefreshingRoomList();
+    };
+    COMM.initializeServerSocket("<? PORT ?>");
+
+    if(!COMM.server_socket){
+        HTML.get("page-1").classList.remove("show");
+        HTML.get("page-2").classList.add("show");
+    }
+});
 
 </script>
 </body>
