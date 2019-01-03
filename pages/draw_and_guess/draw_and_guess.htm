@@ -175,18 +175,45 @@ GAME.canvas = new CustomAnimatedCanvas(HTML.get("page2_canvas"));
 GAME.startRoom = function(o){
     ROOM.name = o["room_name"];
     ROOM.list = o["user_list"];
-    PLAYER.uuid = o["user_uuid"];
-    PLAYER.name = o["user_name"];
-    PLAYER.color = randomColor((Math.random() + 0.618034) % 1);
 
+    ROOM.initialize(o["room_name"], o["user_list"]);
+    PLAYER.initialize(o["user_uuid"], o["user_name"]);
     COMM.initializeP2P();
 
     HTML.printInfo("");
 };
+ROOM.initialize = function(name, user_list){
+    ROOM.name = name;
+    // https://www.w3.org/TR/webdatabase/#databases
+    ROOM.db = openDatabase("db", "1.0", "description", 2 * 1024 * 1024);
+    ROOM.db.transaction(function(tx){
+        tx.executeSql(`CREATE TABLE IF NOT EXISTS users (
+            uuid varchar(36) PRIMARY KEY,
+            name varchar(255),
+        );`);
+    });
+
+};
+PLAYER.initialize = function(uuid, name){
+    PLAYER.uuid = uuid;
+    PLAYER.name = name;
+    PLAYER.color = randomColor((Math.random() + 0.618034) % 1);
+}
+
+COMM.peer_uuid_to_connection = {};
+COMM.initializeP2P = function(){
+    Peer.log_level(0);
+    PLAYER.peer = new Peer(PLAYER.uuid);
+
+    for(let uuid of ROOM.list){
+        if(uuid == PLAYER.uuid) continue;
+        COMM.peer_uuid_to_connection[uuid] = peer.connect(uuid);
+    }
+};
+
 
 // both listener must be placed before server_socket creation
 COMM.onServerSocketOpen = function(e){
-    Peer.log_level(0);
     HTML.initializeRoomButtons();
     HTML.startRefreshingRoomList();
 };
