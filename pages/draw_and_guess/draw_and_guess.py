@@ -99,7 +99,7 @@ def close(socket_id=None):
                 s
             else:
                 leave_room_message = encode_socket_data(json.dumps({
-                        "request": "leave_room",
+                        "type": "leave_room",
                         "server": True,
                         "room_name": room_name,
                         "user_uuid": user_uuid,
@@ -147,11 +147,11 @@ def initializeDrawAndGuessApplication():
         elif user_uuid in user_uuid_to_room_name:
             o["message"] = "user already joined a room"
             return o
-        elif o["request"] == "create_room":
+        elif o["type"] == "create_room":
             if room_name in room_name_to_user_list:
                 o["message"] = "room name already exists"
                 return o
-        elif o["request"] == "join_room":
+        elif o["type"] == "join_room":
             if room_name not in room_name_to_user_list:
                 o["message"] = "cannot find the room"
                 return o
@@ -163,9 +163,9 @@ def initializeDrawAndGuessApplication():
         user_uuid_to_room_name[user_uuid] = room_name
         user_uuid_to_socket_id[user_uuid] = socket_id
 
-        if o["request"] == "create_room":
+        if o["type"] == "create_room":
             room_name_to_user_list[room_name] = [user_uuid]
-        elif o["request"] == "join_room":
+        elif o["type"] == "join_room":
             room_name_to_user_list[room_name].append(user_uuid)
 
 
@@ -208,7 +208,7 @@ def main():
                 break
             try:
                 o = json.loads(d)
-                o = data_handlers.get(o["request"],
+                o = data_handlers.get(o["type"],
                         default_data_handler)(socket_id, o)
                 if o and isinstance(o, dict): # returned value
                     client.sendall(encode_socket_data(
@@ -275,5 +275,4 @@ def initialize(wsgi_application_handler):
             "/draw_and_guess/canvas.js", "/draw_and_guess/util.js",
             "/draw_and_guess/p2p.js"]:
         wsgi_application_handler.exclude_log(abs_path)
-
 

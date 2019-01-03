@@ -1,0 +1,870 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width">
+<!--
+https://valen214.github.io/app/pages/draw_and_guess/draw_and_guess.htm
+-->
+<base href="//ec2-18-222-252-221.us-east-2.compute.amazonaws.com" />
+<script>
+var port = location.port;
+if(port){
+    var b = document.querySelector("base");
+    let url = new URL(b.href);
+    url.port = port;
+    b.href = url.href;
+}
+</script>
+<link rel="stylesheet" href="draw_and_guess/draw_and_guess.css" />
+<style>
+body {
+    touch-action: none; /*
+    auto | none | [ [ pan-x | pan-left | pan-right ] ||
+        [ pan-y | pan-up | pan-down ] || pinch-zoom ] | manipulation
+    */
+}
+</style>
+</head>
+<body>
+<div id="page-1" class="show">
+    <div>&nbsp;page 1</div>
+    <div id="menu">
+        <input id="user_name" type="text" placeholder="name" />
+        <input id="room_id" type="text" placeholder="enter room id" />
+        <span id="join_room">Join Room</span>
+        <span id="create_room">Create Room</span>
+        <div id="room_list"></div>
+    </div>
+</div>
+<div id="page-2">
+        <div>&nbsp;page 2</div>
+    <div id="page2_container">
+        <div id="page2_canvas_container">
+            <div id="page2_overlay_container">
+                <div id="page2_overlay_plaintext"></div>
+                <div id="page2_overlay_pickword">
+                    <div id="page2_overlay_pickword_label"></div>
+                    <div id="page2_overlay_pickword_word0"></div>
+                    <div id="page2_overlay_pickword_word1"></div>
+                    <div id="page2_overlay_pickword_word2"></div>
+                </div>
+            </div>
+            <canvas id="page2_canvas"></canvas>
+        </div>
+        <div id="page2_control">
+            <div id="page2_color_button"><span>&#x1F3A8;</span></div>
+        </div>
+        <div id="page2_color_plate">
+        </div>
+        <div id="page2_room_info">
+        </div>
+        <div id="page2_chat_room_container">
+            <div id="page2_chat_room"></div>
+            <input id="page2_chat_input" type="text"></input>
+        </div>
+    </div>
+</div>
+<div id="message" class="popup_message show hide"></div>
+<script src="draw_and_guess/util.js"></script>
+<script src="webrtc/webrtc_peer.js"></script>
+<script src="draw_and_guess/canvas.js"></script>
+<script>
+
+
+for(var id of [
+        "user_name", "room_id", "join_room", "create_room", "room_list",
+        "page2_overlay_container",
+        "page2_overlay_plaintext",
+        "page2_overlay_pickword",
+        "page2_overlay_pickword_label",
+        "page2_overlay_pickword_word0",
+        "page2_overlay_pickword_word1",
+        "page2_overlay_pickword_word2",
+        "page2_canvas", "page2_color_button", "page2_color_plate",
+        "page2_room_info", "page2_chat_room", "page2_chat_input",
+]){
+    eval(`var ${id} = document.getElementById("${id}");`);
+}
+
+window.addEventListener("load", function(){
+
+var c = new CustomAnimatedCanvas("page2_canvas");
+c.register_handlers().start();
+
+c.do("stroke").add(20, 20).add(100, 20);
+
+c.on("strokestart", function(action){
+    // c.actions.push(action)
+}).on("strokeupdate", function(action){
+}).on("strokeend", function(action){
+    
+});
+
+// initialize() // p2p.js
+
+/* nice hack
+https://stackoverflow.com/questions/
+13630229/can-i-have-an-onclick-effect-in-css#answer-32721572
+*/
+document.body.addEventListener("click", function(e){
+    if(page2_color_plate.contains(e.target)){
+        // page2_color_plate.classList.add("show");
+    } else if(page2_color_button.contains(e.target)){
+        page2_color_plate.classList.toggle("show");
+    } else{
+        page2_color_plate.classList.remove("show");
+    }
+});
+// initialize plate colors
+function initializePlateColors(){
+    var plate = document.getElementById("page2_color_plate");
+    const colors = [
+        "black", "#fc2002", "#34fc02", "#022afc", "#aaf"
+    ];
+    const text_shadow_suffix = [
+            "-1px -1px", "-1px 1px", "1px -1px", "1px 1px #000"
+    ].join(" #000,");
+    for(const c of colors){
+        var elem = document.createElement("div");
+        var icon = document.createElement("span");
+        icon.innerHTML = "&#x2B24"; // "&#x1F3A8;";
+        icon.style.color = c;
+        elem.style.textShadow = text_shadow_suffix;
+        elem.appendChild(icon);
+        plate.appendChild(elem);
+    }
+}
+initializePlateColors();
+
+function count(){
+    return count.i ? ++count.i : count.i = 1;
+}
+function randomWords(count=1){
+    return [
+        "a", "b", "c", "d", "e", "f", "g", "h"
+    ].reduce((acc, cur, i, src) => {
+        if(count - acc.length >= src.length - i){
+            acc.push(cur);
+        } else if(Math.random() < 0.5){
+            acc.push(cur);
+        }
+        return acc;
+    }, []);
+}
+function popup_message(msg="", duration=500){
+    if(msg) message.innerHTML = msg;
+    message.classList.remove("hide");
+    message.classList.add("show");
+    setTimeout(() => {
+        message.classList.remove("show");
+        message.classList.add("hide");
+    }, duration);
+}
+function switchPage(index=1){
+    if(0 < index && index < 3){
+        var page_showing = document.querySelector(
+                'div[id^="page-"][class~="show"]');
+        var target_page_id = "page-" + index;
+        if(page_showing.id != target_page_id){
+            page_showing.classList.remove("show");
+            document.getElementById(target_page_id).classList.add("show");
+        }
+    }
+}
+
+
+function print_info(html_src){
+    if(html_src){
+        var __elem = page2_room_info;
+        var isScrolledToBottom = (__elem.scrollHeight -
+                __elem.clientHeight) <= __elem.scrollTop + 1;
+        __elem.innerHTML += html_src;
+        if(isScrolledToBottom){
+            __elem.scrollTop = __elem.scrollHeight - __elem.clientHeight;
+        }
+    }
+}
+function print_chat(html_src){
+    if(html_src){
+        var __elem = page2_chat_room;
+        var isScrolledToBottom = (__elem.scrollHeight -
+                __elem.clientHeight) <= __elem.scrollTop + 1;
+        __elem.innerHTML += html_src;
+        if(isScrolledToBottom){
+            __elem.scrollTop = __elem.scrollHeight - __elem.clientHeight;
+        }
+    }
+}
+
+
+
+
+
+var PORT = "<? PORT ?>";
+var socket = null;
+if(parseInt(PORT)){
+    var server_socket_addr = "wss://" +
+            window.location.hostname + ":" + PORT;
+    console.log("server socket addr:", server_socket_addr);
+    socket = new WebSocket(server_socket_addr);
+} else { // not running on desired server
+    document.getElementById("page-1").classList.remove("show");
+    document.getElementById("page-2").classList.add("show");
+}
+
+
+
+
+function sendObject(obj){
+    console.log("%csending to server:", "color:blue", obj);
+    socket.send(JSON.stringify(obj));
+}
+
+var sendToEveryOne = () => {
+    console.log("default handler: sendToEveryOne()");
+};
+
+var leaveRoomHandler = () => {
+    throw new Error("leaveRoomHandler(): not yet assigned");
+};
+
+const CANVAS_CONFIG = {
+    "strokeStyle": "random",
+    "lineWidth": 5,
+};
+var room_name, user_uuid, user_name, user_list, peer;
+var sec_before_round = 3;
+var sec_pick_word = 15;
+var sec_guess = 60;
+const game_info = Object.preventExtensions({
+    "current_drawer": null,
+    "round_begin": null,
+    "pick_word_end": null,
+    "guess_end": null,
+    "picked_word": null,
+});
+function StartRoom(o){
+    room_name = o["room_name"];
+    user_uuid = o["user_uuid"];
+    user_name = o["user_name"];
+    user_list = o["user_list"];
+    peer = new Peer(user_uuid);
+    var color = randomColor((Math.random() + 0.6180339)%1);
+
+    const uuid_to_name = {};
+    const uuid_to_conn = {};
+    
+    function spanTextWithColor(text, color){
+        return `<span style="color:${color}">${text}</span>`;
+    }
+    // <script>
+
+
+    for(var a of [
+        "room_name", "user_uuid", "user_name", "user_list",
+        "peer", "game_info", "uuid_to_name", "uuid_to_conn",
+    ]){
+        window[a] = eval(a);
+    }
+
+    print_info(`
+    
+    
+    `);
+
+    
+
+
+
+
+    print_info(`You("${spanTextWithColor(user_name, color)
+            }") have joined the room("${room_name}")<br />`);
+    print_info(`Your UUID: "${spanTextWithColor(
+            o["user_uuid"], color)}"<br />`);
+    console.assert(user_name == document.getElementById("user_name").value);
+
+    var uuid_to_canvas_action = {};
+    function onMessage(data){
+        const o = JSON.parse(data);
+        switch(o["type"]){
+        case "join_room":
+            console.assert(o["room_name"] == room_name);
+            console.assert(this instanceof PeerConnection);
+
+            console.log(
+                    `"%c${o["name"]}%c" joined the room`,
+                    "color:"+o["color"], "color:black");
+            print_info(`player "<span style="color:${o["color"]}">${
+                    o["name"]}</span>" joined the room!<br /><br />`);
+
+            user_list.push(o["src_uuid"]);
+            uuid_to_name[o["src_uuid"]] = o["name"];
+            uuid_to_conn[o["src_uuid"]] = this;
+
+            this.send(JSON.stringify({
+                "type": "joined_room_feedback",
+                "src_uuid": user_uuid,
+                "target_uuid": o["src_uuid"],
+                "room_name": room_name,
+                "name": user_name,
+            }));
+
+            if(game_info.current_drawer){
+
+            } else{ // starts a round
+                start_round({current_drawer: user_uuid});
+            }
+
+            break;
+        case "joined_room_feedback":
+            console.assert(o["room_name"] == room_name);
+            // supposed to be set in createConnection()
+            console.assert(uuid_to_conn[o["src_uuid"]] === this);
+            console.assert(o["target_uuid"] === user_uuid);
+            uuid_to_name[o["src_uuid"]] = o["name"];
+            break;
+
+        case "start_round":
+        case "start_pick_word":
+        case "picked_word":
+            start_round(o);
+            break;
+        case "guessed_word":
+
+            break;
+        case "canvas_strokestart":
+            var src_uuid = o["src_uuid"];
+            console.assert(src_uuid != user_uuid);
+            var action = new CanvasStroke(c, o);
+            c.actions.push(action);
+            if(src_uuid in uuid_to_canvas_action){
+                uuid_to_canvas_action[src_uuid].push(action);
+            } else{
+                uuid_to_canvas_action[src_uuid] = [action];
+            }
+            break;
+        case "canvas_strokeupdate":
+            console.assert(o["src_uuid"] != user_uuid);
+            var actions = uuid_to_canvas_action[o["src_uuid"]];
+            var action = actions[actions.length - 1];
+            action.add(o["x"], o["y"], true);
+            break;
+        case "canvas_clear":
+            c.actions.push(new CanvasClear(c));
+            break;
+        case "chat":
+            print_chat(`<span style="color:${o["color"]}"` +
+                    `>${o["name"]}</span>: ${o["content"]}`)
+            break;
+        default:
+            console.error("unsupported action type");
+        }
+    }
+
+
+    function onConnection(pc){
+        new Promise(resolve => pc.on("open", resolve
+        )).then(_pc => new Promise(resolve => {
+            console.assert(_pc === pc);
+            console.warn("connection opened!");
+
+        })).catch(console.error);
+        pc.on("message", onMessage.bind(pc));
+    }
+    peer.on("connection", onConnection);
+
+    console.assert(user_list.includes(user_uuid));
+
+    function createConnection(target_uuid){
+        console.log("CREATING CONNECTION TO " + target_uuid);
+        var pc = peer.connect(target_uuid);
+        new Promise(resolve => pc.on("open", resolve
+        )).then(_pc => new Promise(resolve => {
+            console.assert(_pc === pc);
+            console.warn("connection opened!");
+
+            pc.send(JSON.stringify({
+                "type": "join_room",
+                "src_uuid": user_uuid,
+                "room_name": room_name,
+                "name": user_name,
+                "color": color,
+            }));
+
+            uuid_to_conn[target_uuid] = pc;
+
+        })).catch(console.error);
+        pc.on("message", onMessage.bind(pc));
+    }
+
+    console.log("user_list:", user_list);
+    for(var target_uuid of user_list){
+        if(target_uuid != user_uuid){
+            createConnection(target_uuid);
+        }
+    }
+
+    
+    sendToEveryOne = function(data){
+        switch(typeof data){
+        case "object":
+            data = JSON.stringify(data);
+        case "string":
+            for(var uuid of user_list){
+                if(uuid == user_uuid) continue;
+                uuid_to_conn[uuid].send(data);
+            }
+            break;
+        default:
+            throw new Error("invalid data type");
+        }
+    };
+
+    leaveRoomHandler = function(o){
+        const uuid = o["user_uuid"];
+        console.assert(o["server"] === true,
+                o["room_name"] == room_name,
+                o["user_name"] == uuid_to_name[uuid],
+                o["uuid"] == user_uuid);
+        uuid_to_conn[uuid].close();
+        delete uuid_to_name[uuid];
+        delete uuid_to_conn[uuid];
+        console.assert(user_list.indexOf(uuid) >= 0,
+                "if this message shows,",
+                "it means server is telling us to remove a user",
+                "that is already not here,",
+                "which should've been not happening because",
+                "the server program is well-defined");
+        // but just in case....... or can use filter?
+        // if(user_list.includes(uuid)){ // search twice
+        let i = user_list.indexOf(uuid);
+        if(i >= 0){
+            user_list.splice(user_list.indexOf(uuid), 1);
+            if(uuid == game_info.current_drawer){
+                showOverlay({
+                    current_drawer: user_list[i % user_list.length]
+                });
+            }
+            console.log(`player "${o["user_name"]}" left the room`);
+            print_info(`player "<span color="${
+                    "grey"}">${o["user_name"]}</span>" left the room`);
+        } else{
+            console.error(`player ${o["user_name"]} already left the room`)
+        }
+    };
+
+    /**
+     * Other initialize
+     * 
+     * 
+     * 
+     * 
+     * 
+     */
+    c.on("strokestart", function(action){
+        console.log("STROKESTART!!!!!!!!!!");
+        Object.assign(action, CANVAS_CONFIG);
+        if(CANVAS_CONFIG.strokeStyle == "random"){
+            action.strokeStyle = randomColor();
+        }
+        sendToEveryOne(JSON.stringify({
+                "type": "canvas_strokestart",
+                "src_uuid": user_uuid,
+                "strokeStyle": action.strokeStyle,
+                "lineWidth": action.lineWidth,
+                "lineJoin": action.lineJoin,
+        }));
+    }).on("strokeupdate", function(action){
+        var pts = action.points;
+        pts = pts[pts.length - 1];
+        sendToEveryOne(JSON.stringify({
+                "type": "canvas_strokeupdate",
+                "src_uuid": user_uuid,
+                "x": pts.x, "y": pts.y,
+        }));
+    }).on("strokeend", function(action){
+
+    }).on("clear", function(action){
+        (JSON.stringify({
+                "type": "canvas_clear",
+                "src_uuid": user_uuid,
+        }));
+    });
+
+    
+    function distribute_chat(str, end="\n"){
+        let out = (str + end).replace(
+                    "<", "&lt;").replace(
+                    ">", "&gt;").replace("\n",
+                "<br />");
+        if(str == game_info.picked_word){
+            console.log("HIDED ANSWER", str, game_info.picked_word);
+            
+            print_chat(`<span style="background:rgba(80, 255, 80, 0.3)"` +
+                    `>${user_name}: ${out}</span>`)
+        } else{
+            print_chat(`<span style="color:${color}"` +
+                    `>${user_name}</span>: ${out}`)
+            sendToEveryOne(JSON.stringify({
+                    "type": "chat",
+                    "color": color,
+                    "name": user_name,
+                    "content": out,
+                    "src_uuid": user_uuid,
+            }))
+        }
+    }
+
+
+    const COMMAND_MATCHER = new RegExp(`^/(${[
+            "clear", "size", "color",
+    ].join("|")})`); // must not have 'g'
+    page2_chat_input.addEventListener("keydown", function(e){
+        var key = e.which || e.keyCode;
+        switch(key){ // suggested value
+        case 13:
+            console.assert(e.key == "Enter");
+            let input = page2_chat_input.value;
+            let cmd = COMMAND_MATCHER.exec(input)
+            switch(cmd && cmd[0]){
+            case "/clear":
+                c.do("clear");
+                break;
+            case "/color":
+                let s = document.head.style;
+                CANVAS_CONFIG.strokeStyle = (
+                    input.slice(7) === "random" ? "random" : [
+                        s.color = "#000",
+                        s.color = CANVAS_CONFIG.strokeStyle,
+                        s.color = input.includes("#") ? 
+                                input.slice(input.indexOf("#")) :
+                                "#" + input.slice(6).trim(),
+                        s.color
+                ][3]);
+                break;
+            case "/size":
+                CANVAS_CONFIG.lineWidth = (
+                        +input.slice(5) || CANVAS_CONFIG.lineWidth || 3);
+                break;
+            default:
+                if(input){
+                    distribute_chat(input);
+                }
+            }
+            page2_chat_input.value = "";
+            break; // enter
+        }
+    });
+
+    switchPage(2);
+
+    /**
+     * End of StartRoom, Game starts
+     * 
+     * 
+     * 
+     * 
+     * 
+     * 
+     */
+}
+var showOverlay_waiting_callback_id;
+var showOverlay_pickword_setinterval_id;
+function showOverlay(type, ...args){
+    switch(type){
+    case "round_begin_countdown":
+        var remaining = game_info.round_begin - Date.now();
+        if(remaining > 0){
+            if(!args[0]){
+                page2_overlay_container.style.display = "block";
+                page2_overlay_plaintext.style.display = "inline-block";
+                if(showOverlay_waiting_callback_id){
+                    clearTimeout(showOverlay_waiting_callback_id);
+                }
+            }
+            page2_overlay_plaintext.innerText = `round begin in ${
+                parseInt(remaining / 1000)} seconds`;
+            showOverlay_waiting_callback_id = setTimeout(
+                    showOverlay, Math.min(1000, remaining),
+                    "round_begin_countdown", true);
+        } else{
+            showOverlay_waiting_callback_id = 0;
+            hideOverlay();
+        }
+        break;
+    case "wait_picking_word":
+        var remaining = game_info.pick_word_end - Date.now();
+        if(remaining > 0){
+            if(!args[0]){
+                page2_overlay_container.style.display = "block";
+                page2_overlay_plaintext.style.display = "inline-block";
+                if(showOverlay_waiting_callback_id){
+                    clearTimeout(showOverlay_waiting_callback_id);
+                }
+            }
+            page2_overlay_plaintext.innerText = `drawer picking word: ${
+                parseInt(remaining / 1000)} seconds remaining`;
+            showOverlay_waiting_callback_id = setTimeout(
+                    showOverlay, Math.min(1000, remaining),
+                    "wait_picking_word", true);
+        } else{
+            showOverlay_waiting_callback_id = 0;
+            hideOverlay();
+        }
+        break;
+    case "pick_word":
+        // args: [callback, word0, word1, word2, <initial>]
+
+        if(!args[1]){
+            [args[1], args[2], args[3]] = randomWords(3);
+            
+            const __func = args[0];
+            args[0] = (o) => {
+                clearInterval(showOverlay_pickword_setinterval_id);
+                clearTimeout(showOverlay_pickword_setinterval_id);
+                showOverlay_pickword_setinterval_id = 0;
+                hideOverlay();
+                if(typeof o === "string"){
+                    __func(o);
+                } else{
+                    __func(o.target.innerText);
+                }
+            };
+
+        }
+
+        var remaining = game_info.pick_word_end - Date.now();
+        if(remaining > 1000){
+            if(!args[4]){
+                page2_overlay_container.style.display = "block";
+                page2_overlay_pickword.style.display = "inline-block";
+
+                for(var [i, elem] of [
+                        page2_overlay_pickword_word0,
+                        page2_overlay_pickword_word1,
+                        page2_overlay_pickword_word2,
+                ].entries()){
+                    elem.innerText = args[i+1];
+                    elem.onclick = args[0];
+                }
+
+                showOverlay_pickword_setinterval_id = setInterval(
+                    showOverlay, 1000, "pick_word", ...args, true);
+            }
+            page2_overlay_pickword_label.innerHTML = (
+`you have ${parseInt(remaining / 1000)} seconds to pick a word:`);
+
+        } else if(remaining < 1000){
+            clearInterval(showOverlay_pickword_setinterval_id);
+            showOverlay_pickword_setinterval_id = setTimeout(
+                showOverlay, 1000, "pick_word", ...args);
+        } else{
+            args[0](args.slice(1, 4)[Math.floor(Math.random())]);
+            hideOverlay();
+        }
+        break;
+    default:
+        console.error("invalid overlay type:", type);
+    }
+}
+function hideOverlay(){
+    page2_overlay_container.style.display = "none";
+    page2_overlay_plaintext.style.display = "none";
+    page2_overlay_pickword.style.display = "none";
+}
+function pick_word(word){
+    var begin_time = Date.now();
+
+    var o = {
+        "current_drawer": game_info.current_drawer,
+        "round_begin": begin_time,
+        "pick_word_end": begin_time,
+        "guess_end": begin_time + sec_guess * 1000,
+        "picked_word": word,
+    };
+
+    Object.assign(game_info, o);
+
+    o["type"] = "picked_word";
+    sendToEveryOne(o);
+}
+function start_round({
+    current_drawer,
+    round_begin,
+    pick_word_end,
+    guess_end,
+    picked_word,
+} = {}){
+    c.do("clear");
+    if(user_uuid == current_drawer){
+        var d = new Date();
+        d.setSeconds(d.getSeconds() + sec_before_round);
+        var begin_time = d.getTime();
+
+        console.log("SENNDING BEING_TIME:", begin_time);
+        var o = {
+            "current_drawer": current_drawer,
+            "round_begin": begin_time,
+            "pick_word_end": begin_time + sec_pick_word * 1000,
+            "guess_end": begin_time + (sec_pick_word + sec_guess) * 1000,
+        };
+        Object.assign(game_info, o);
+
+        showOverlay("round_begin_countdown");
+        setTimeout(() => {
+            showOverlay("pick_word", pick_word);
+            o["type"] = "start_pick_word";
+            sendToEveryOne(o);
+        }, sec_before_round * 1000);
+
+        o["type"] = "start_round";
+        sendToEveryOne(o);
+    } else{
+        page2_canvas.style.pointerEvents = "none";
+        Object.assign(game_info, {
+            "current_drawer": current_drawer,
+            "round_begin": round_begin,
+            "pick_word_end": pick_word_end,
+            "guess_end": guess_end,
+            "picked_word": picked_word,
+        });
+        if(Date.now() < round_begin){
+            showOverlay("round_begin_countdown");
+        } else if(Date.now() < pick_word_end){
+            showOverlay("wait_picking_word");
+        }
+    }
+}
+
+
+var CALLBACK = {};
+new Promise(resolve => {
+    if(socket) resolve();
+}).then(() => {
+
+socket.addEventListener("open", function(e){
+    // get room list
+    Peer.log_level(0);
+    initializeComponent();
+});
+socket.addEventListener("message", function(e){
+    var obj = null;
+    try{
+        obj = JSON.parse(e.data);
+    } catch(e){}
+    if(!obj) return;
+
+    console.log("%cmsg from server:", "color:red", obj);
+    console.assert([undefined, "server", "peer"].includes(obj["response"]));
+
+    function doCallback(request, o){
+        var q = CALLBACK[o["callback"]];
+        if(typeof q === "function"){
+            delete CALLBACK[o["callback"]];
+            q(o);
+        } else{
+            console.error("no callback registered for",
+                    `${obj.type}: ${obj.callback}`);
+        }
+    }
+
+    switch(obj["request"]){
+    case "room_list":
+        var room_list = document.getElementById("room_list");
+        var e;
+        while(e = room_list.lastChild){
+            room_list.removeChild(e);
+        }
+        for(var l of obj["room_list"]){
+            e = document.createElement("div");
+            e.innerHTML = `name: ${l[0]}; user count: ${l[1]}<br/>`;
+            room_list.appendChild(e);
+        }
+        break;
+    case "create_room":
+    case "join_room":
+        doCallback(obj["request"], obj);
+        break;
+    case "leave_room":
+        leaveRoomHandler(obj);
+        break;
+    default:
+        console.log("unhandled response:", obj);
+    }
+
+});
+
+});
+
+
+
+function initializeComponent(){
+
+    var room_started = false; // potentially making it global
+    function buttonClicked(e){
+        if(this.button_clicked){
+            popup_message("loading");
+            console.error(this["loading_msg"]);
+            return;
+        }
+        this.button_clicked = true;
+
+        const callback_uuid = count();
+        const req = {
+            "request": this["request"],
+            "room_name": room_id.value,
+            "user_name": user_name.value,
+            "callback": callback_uuid,
+        };
+        new Promise(resolve => {
+            CALLBACK[callback_uuid] = resolve;
+            sendObject(req);
+        }).then(o => {
+            if(o["status"]){
+                room_started = true;
+                StartRoom(o);
+                this.button_clicked = null;
+            } else{
+                popup_message(o["message"]);
+            }
+            if(this.button_clicked != null){
+                this.button_clicked = false;
+            }
+        });
+        setTimeout(() => {
+            if(callback_uuid in CALLBACK){
+                console.error(this["timeout_msg"]);
+                CALLBACK[callback_uuid] = () => {};
+                this.button_clicked = false;
+            }
+        }, 5000);
+    }
+
+    function roomListRefresh(){
+        sendObject({
+            request: "room_list"
+        });
+        if(!room_started){
+            setTimeout(roomListRefresh, 5000);
+        }
+    }
+    setTimeout(roomListRefresh, 0);
+
+    create_room.addEventListener("click", buttonClicked.bind({
+            "button_clicked": false,
+            "request": "create_room",
+            "loading_msg": "create_room clicked while still processing",
+            "timeout_msg": "callback not yet received, create room halted",
+    }));
+    join_room.addEventListener("click", buttonClicked.bind({
+            "button_clicked": false,
+            "request": "join_room",
+            "loading_msg": "join_room clicked while still processing",
+            "timeout_msg": "callback not yet received, join room halted",
+    }));
+}
+
+});
+</script>
+</body>
+</html>

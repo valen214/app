@@ -1,0 +1,38 @@
+======== WebRTC ========
+From Server {
+
+}
+From Peer {
+
+}
+Initialize {
+    
+}
+peer constructor {
+    socket to server
+        - send with uuid
+        
+}
+
+======== draw & guess ========
+From Server {
+
+
+
+}
+From Peer {
+
+
+
+
+}
+Initialize {
+    socket to server
+    join room, create room button
+
+
+}
+
+
+
+
