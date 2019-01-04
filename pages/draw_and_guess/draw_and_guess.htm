@@ -193,7 +193,8 @@ GAME.initialize = function(o){
     PLAYER.initialize(o["user_uuid"], o["user_name"]);
     
     const join_room_message = JSON.stringify({
-            "type": "join_room",
+            "type": "room",
+            "action": "join_room",
             "src_uuid": PLAYER.uuid,
             "name": PLAYER.name,
             "color": PLAYER.color,
@@ -206,29 +207,47 @@ GAME.initialize = function(o){
 };
 GAME.initializeMessageHandler = function(){
     for(let [type, listener] of Object.entries({
-            "join_room": GAME.onJoinRoomMessage,
-            "joined_room_feedback": GAME.onJoinedRoomFeedback,
-            "canvas_strokestart": GAME.onCanvasMessage,
-            "canvas_strokeupdate": GAME.onCanvasMessage,
+            "room": GAME.onRoomMessage,
+            "canvas": GAME.onCanvasMessage,
+            "chat": GAME.onChatMessage,
+            "round": GAME.onRoundMessage,
     })){
         COMM.addPeerMessageListener(type, listener);
     }
 };
 
 
-GAME.onJoinRoomMessage = function(o){
+GAME.onRoomMessage = function(o, pc){
+    switch(o.action){
+    case "join_room":
 
-};
-GAME.onJoinedRoomFeedback = function(o){
-    
+        console.log(`%c"${o.name}"`, "color:"+o.color, "joined the room");
+
+        pc.send(JSON.stringify({
+            "type": "room",
+            "action": "joined_room_feedback",
+            "src_name": PLAYER.name,
+            "src_uuid": PLAYER.uuid,
+        }));
+        break;
+    case "joined_room_feedback":
+
+        break;
+    }
 };
 GAME.onCanvasMessage = function(o){
+
+};
+GAME.onChatMessage = function(o){
+
+};
+GAME.onRoundMessage = function(o){
 
 };
 
 
 COMM.onNewPeerConnection = function(pc){
-    pc.on("message", COMM.onMessageFromPeer);
+    pc.on("message", COMM.onMessageFromPeer.bind(pc));
 };
 
 COMM.peer_uuid_to_connection = {};
@@ -236,10 +255,10 @@ COMM.peer_message_listeners = {};
 COMM.onPeerConnectionOpen = function(pc){
     throw new Error("not implemented");
 };
-COMM.onMessageFromPeer = function(e){
+COMM.onMessageFromPeer = function(data){
     var msg = null;
     try{
-        msg = JSON.parse(e.data);
+        msg = JSON.parse(data);
     } catch(e){
         console.error(e);
     }
@@ -256,7 +275,7 @@ COMM.onMessageFromPeer = function(e){
         }
         while(i--){
             let [func, options] = listeners[i];
-            func(msg);
+            func(msg, this);
             if(options.once){
                 listeners.splice(i, 1);
             }
@@ -285,7 +304,7 @@ COMM.initializeP2P = function(){
         if(uuid == PLAYER.uuid) continue;
         let pc = PLAYER.peer.connect(target_uuid);
         pc.on("open", COMM.onPeerConnectionOpen);
-        pc.on("message", COMM.onMessageFromPeer);
+        pc.on("message", COMM.onMessageFromPeer.bind(pc));
         COMM.peer_uuid_to_connection[target_uuid] = pc;
     }
 };
