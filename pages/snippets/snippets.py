@@ -29,6 +29,8 @@ def initialize(wsgi_application_handler):
                     static_file(""),
             r"/(code_)?snippets?/pointer(_event)?(\.html?)?":
                     static_file("pages/snippets/pointer_event.htm"),
+            r"/(code_)?snippets?/react(\.html?)?":
+                    static_file("pages/snippets/react.htm"),
             r"/status": status,
     }.items():
         wsgi_application_handler.add("GET", regex, func)

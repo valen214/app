@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script
+    src="https://unpkg.com/react@16/umd/react.production.min.js"
+    crossorigin="crossorigin"
+></script>
+<script
+    src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js"
+    crossorigin="crossorigin"
+></script>
+</head>
+<body>
+<script>
+
+"use strict";
+
+const e = React.createElement;
+
+class SimpleButton extends React.Component
+{
+    constructor(props){
+        super(props);
+        this.state = { pressed: false };
+    }
+
+    render(){
+        if(this.state.pressed){
+            return "pressed";
+        }
+
+        return e("button", {
+                    onClick: () => this.setState({ pressed: true }),
+                },
+                "simple button"
+        );
+    }
+}
+
+window.addEventListener("load", () => {
+    var elem = document.createElement("div");
+    ReactDOM.render(e(SimpleButton), elem);
+    document.body.appendChild(elem);
+});
+
+</script>
+<script>
+</script>
+</body>
+</html>
