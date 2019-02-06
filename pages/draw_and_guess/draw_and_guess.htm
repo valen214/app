@@ -68,6 +68,7 @@ body {
 <script src="draw_and_guess/util.js"></script>
 <script src="webrtc/webrtc_peer.js"></script>
 <script src="draw_and_guess/canvas.js"></script>
+<script type="module" src="draw_and_guess/main.js"></script>
 <script>
 const CONFIG = {
 
@@ -75,7 +76,7 @@ const CONFIG = {
 const UTIL = {};
 const HTML = {};
 const GAME = {};
-const ROOM = {};
+var ROOM = undefined;
 const PLAYER = {};
 const COMM = {};
 
@@ -180,8 +181,8 @@ GAME.startRoom = function(o){
 };
 // https://www.w3.org/TR/webdatabase/#databases
 ROOM.initialize = function(name, user_list){
+    ROOM = new P2PRoom(COMM.peer, user_list);
     ROOM.name = name;
-    ROOM.list = user_list;
 };
 PLAYER.initialize = function(uuid, name){
     PLAYER.uuid = uuid;
@@ -189,6 +190,7 @@ PLAYER.initialize = function(uuid, name){
     PLAYER.color = randomColor((Math.random() + 0.618034) % 1);
 }
 GAME.initialize = function(o){
+    COMM.peer = new Peer(o["user_uuid"]);
     ROOM.initialize(o["room_name"], o["user_list"]);
     PLAYER.initialize(o["user_uuid"], o["user_name"]);
     
@@ -202,8 +204,8 @@ GAME.initialize = function(o){
     COMM.onPeerConnectionOpen = function(pc){
         pc.send(join_room_message);
     };
-    COMM.initializeP2P(); // has to be the last
-    // COMM.sendToEveryOne();
+    
+    
 };
 GAME.initializeMessageHandler = function(){
     for(let [type, listener] of Object.entries({
@@ -217,7 +219,7 @@ GAME.initializeMessageHandler = function(){
 };
 
 
-GAME.onRoomMessage = function(o, pc){
+GAME.onRoomMessage = function(o, data, sender_id, id){
     switch(o.action){
     case "join_room":
 
@@ -250,69 +252,6 @@ COMM.onNewPeerConnection = function(pc){
     pc.on("message", COMM.onMessageFromPeer.bind(pc));
 };
 
-COMM.peer_uuid_to_connection = {};
-COMM.peer_message_listeners = {};
-COMM.onPeerConnectionOpen = function(pc){
-    throw new Error("not implemented");
-};
-COMM.onMessageFromPeer = function(data){
-    var msg = null;
-    try{
-        msg = JSON.parse(data);
-    } catch(e){
-        console.error(e);
-    }
-    if(!msg) return;
-
-    let unhandled = true;
-
-    if(msg.type in COMM.peer_message_listeners){
-        console.log("%creceiving from server:", "color:red", msg);
-        let listeners = COMM.peer_message_listeners[msg.type];
-        let i = listeners.length;
-        if(i > 0){
-            unhandled = false;
-        }
-        while(i--){
-            let [func, options] = listeners[i];
-            func(msg, this);
-            if(options.once){
-                listeners.splice(i, 1);
-            }
-        }
-    }
-
-    if(unhandled){
-        console.log("%cunhandled message from server", "color:red", msg);
-    }
-};
-COMM.addPeerMessageListener = function(type, func, options = {
-    once: false
-}){
-    if(type in COMM.server_message_listeners){
-        COMM.server_message_listeners[type].push([func, options]);
-    } else{
-        COMM.server_message_listeners[type] = [[func, options]];
-    }
-};
-COMM.initializeP2P = function(){
-    Peer.log_level(0);
-    PLAYER.peer = new Peer(PLAYER.uuid);
-    peer.on("connection", COMM.onNewPeerConnection);
-
-    for(let uuid of ROOM.list){
-        if(uuid == PLAYER.uuid) continue;
-        let pc = PLAYER.peer.connect(target_uuid);
-        pc.on("open", COMM.onPeerConnectionOpen);
-        pc.on("message", COMM.onMessageFromPeer.bind(pc));
-        COMM.peer_uuid_to_connection[target_uuid] = pc;
-    }
-};
-COMM.sendToEveryOne = function(message){
-    for(let pc of COMM.peer_uuid_to_connection){
-        pc.send(message);
-    }
-};
 
 COMM.server_socket = null;
 COMM.server_message_listeners = {};

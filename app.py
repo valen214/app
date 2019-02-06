@@ -167,8 +167,8 @@ class WSGIApplicationHandler:
                         print(f'{" "*16}=> <module {m}>.{func.__name__}() ')
                     content = func(env, start_res) or ""
                     return content
-            print(f'{" " * 8}"{method} {path}" did not match any handler, '
-                    + 'default_handler() invoked')
+            print(f'{" " * 8}"{method} {path}" did not match any handler')
+            print(f'{" " * 16}=> default_handler() invoked')
             return self.default_handler(env, start_res)
         except Exception as e:
             print(" " * 8 + ("\n" + " " * 8).join(
