@@ -1,5 +1,7 @@
 #!/bin/python
 
+# ps -A
+
 def main():
     import os
     import subprocess
@@ -39,19 +41,19 @@ def main():
     running = True
     def run():
         nonlocal _proc, running
-        print("====" * 20)
+        print("\33[1;32;40m" + "====" * 20)
         print("main.py: app.py bootstrap, listening to changes")
-        print("====" * 20)
+        print("====" * 20 + "\33[0m")
 
         while running:
             if changed():
-                print("====" * 20)
+                print("\33[1;32;40m" + "====" * 20)
                 print("changes in watchlist dectected. rebooting...")
                 
                 _proc.kill()
                 _proc.wait() # return code
                 print(f"return code: {_proc.returncode}")
-                print("====" * 20)
+                print("====" * 20 + "\33[0m")
                 _proc = subprocess.Popen(args)
             time.sleep(5)
         

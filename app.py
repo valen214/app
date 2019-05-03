@@ -158,19 +158,22 @@ class WSGIApplicationHandler:
     def __call__(self, env, start_res):
         method = env["REQUEST_METHOD"]
         path = env["PATH_INFO"]
+        ___ = " " * 8
         try:
             for m, regex, func in self.__handlers[method]:
                 if regex.match(path):
                     if not path in excluded_info:
-                        print(f'{" "*8}"{method} {path}"')
-                        print(f'{" "*16}=> r"{regex.pattern}"')
-                        print(f'{" "*16}=> <module {m}>.{func.__name__}() ')
+                        print(f'{___}"{method} {path}"')
+                        print(f'{___*2}=> r"{regex.pattern}"')
+                        print(f'{___*2}=> <module {m}>.{func.__name__}() ')
                     content = func(env, start_res) or ""
-                    return content
-            print(f'{" " * 8}"{method} {path}" did not match any handler')
-            print(f'{" " * 16}=> default_handler() invoked')
-            return self.default_handler(env, start_res)
-        except Exception as e:
+                    break
+            else:
+                print(f'{___}"{method} {path}" did not match any handler')
+                print(f'{___*2}=> default_handler() invoked')
+                content = self.default_handler(env, start_res)
+            return content
+        except Exception:
             print(" " * 8 + ("\n" + " " * 8).join(
                     traceback.format_exc(5).split("\n")))
             return self.error_handler(start_res, "500 Internal Server Error")
@@ -248,8 +251,9 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         }
 
         content = wsgi_application_handler(env, self.start_res)
-        self.wfile.write(bytes(content, "utf-8")
-                if isinstance(content, str) else content)
+        if isinstance(content, str):
+            content = bytes(content, "utf-8")
+        self.wfile.write(content)
         self.wfile.flush()
 
     def start_res(self, msg, headers = []):
@@ -301,8 +305,8 @@ def module_thread():
             if hasattr(m, "initialize") and callable(m.initialize):
                 m.initialize(wsgi_application_handler)
             else:
-                print(f'<module "{n}"> has no initialize(), skipped\n')
-            print(f'loaded <module "{n}">\n')
+                print(f'{R}<module "{n}"> has no initialize(){END}\n')
+            print(f'- load <module "{n}"> end\n')
         except:
             print_stack_trace()
             print(path + " not loaded")
@@ -370,7 +374,7 @@ def main():
     proc = subprocess.Popen(["curl",
             "http://169.254.169.254/latest/meta-data/public-ipv4"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print(f"public ip: {proc.communicate()[0].decode('utf-8')}")
+    print(f"{P}public ip: {proc.communicate()[0].decode('utf-8')}{END}")
 
     s = []
     def start_server(address, port, use_https=False):
@@ -395,6 +399,7 @@ def main():
     l = []
     for t in [
         ("0.0.0.0", 8128, False),
+        ("0.0.0.0", 80, False),
         # ("0.0.0.0", 443, True),
         ("0.0.0.0", 8129, True),
     ]:
@@ -402,7 +407,7 @@ def main():
         l[-1].start()
 
     for t in l:
-        l[-1].join()
+        t.join()
 
     print(f"{R}program exit{E}")
 

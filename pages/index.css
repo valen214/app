@@ -16,18 +16,21 @@ html, body {
     
     cursor: default;
 }
+
 a {
     text-decoration: underline;
+}
+a:hover {
+    color: red;
 }
 a:visited {
     color: inherit;
 }
-a:hover {
-    color: blue;
-}
+/*
 a:active {
-    /* color: red; */
+    color: white;
 }
+*/
 
 /*
 [id]:after {
@@ -55,6 +58,16 @@ parent child {
     --side_nav-width: 0px; /* used by end_message */
     
     --end_message_transition: opacity 1.5s cubic-bezier(0.55, 0.06, 0.68, 0.19);
+}
+
+#loading_cover {
+    height: 100%;
+    width: 100%;
+    display: block;
+    position: absolute;
+    z-index: 16;
+    background: white;
+    padding-top: calc(50% - 0.5em);
 }
 
 #banner {
@@ -232,7 +245,9 @@ parent child {
     display: block;
 }
 #item_container > .top_nav_item {
+    /*
     display: inline-block;
+    */
     float: left;
     margin: 10px 5px;
     border: 1px solid #000;
@@ -296,7 +311,7 @@ parent child {
 
 #main {
     display: inline-block;
-    z-index: -1;
+    z-index: 5;
 }
 
 #title {

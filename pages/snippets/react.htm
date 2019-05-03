@@ -21,7 +21,14 @@ class SimpleButton extends React.Component
 {
     constructor(props){
         super(props);
+        console.log(props);
         this.state = { pressed: false };
+
+        this.button = e("button", {
+                    onClick: () => this.setState({ pressed: true }),
+                },
+                "simple button"
+        );
     }
 
     render(){
@@ -29,11 +36,7 @@ class SimpleButton extends React.Component
             return "pressed";
         }
 
-        return e("button", {
-                    onClick: () => this.setState({ pressed: true }),
-                },
-                "simple button"
-        );
+        return ;
     }
 }
 

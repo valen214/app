@@ -8,7 +8,7 @@ def index(env, start_res):
         content = f.read()
         start_res("200 OK", [
                 ("Content-Type", "text/html; charset=utf-8"),
-                ("Content-Length", str(len(content)))
+                ("Content-Length", str(len(content.encode("utf-8"))))
         ])
         return content
 
@@ -18,6 +18,16 @@ def index_css(env, start_res):
         start_res("200 OK", [
                 ("Content-Type", "text/css; charset=utf-8"),
                 ("Content-Length", str(len(content)))
+        ])
+        return content
+
+def index_js(env, start_res):
+    with open("pages/index.js", "r") as f:
+        content = f.read()
+        start_res("200 OK", [
+                ("Content-Type", "application/javascript; charset=utf-8"),
+                ("Content-Length", str(len(content.encode("utf-8"))))
+                # it has non-ascii chr inside
         ])
         return content
 
@@ -35,6 +45,7 @@ def initialize(wsgi_application_handler):
     for regex, func in {
             "/(index(.html?)?)?": index,
             "/index.css": index_css,
+            "/index.js": index_js,
             "/([^/]+/)*favicon.(png|icon?)": favicon,
     }.items():
         wsgi_application_handler.add("GET", regex, func)
@@ -42,5 +53,5 @@ def initialize(wsgi_application_handler):
         
     for abs_path in [
             "/", "/index", "/index.htm", "/index.html",
-            "/index.css", "/favicon.ico"]:
+            "/index.css", "/index.js", "/favicon.ico"]:
         wsgi_application_handler.exclude_log(abs_path)
