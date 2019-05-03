@@ -64,8 +64,8 @@ def main():
     except KeyboardInterrupt:
         print("exit signal received, terminating...")
         running = False
-        _proc.kill()
         _proc.wait()
+        _proc.kill()
     
 if __name__ == "__main__":
     main()

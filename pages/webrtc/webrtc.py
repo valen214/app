@@ -9,6 +9,7 @@ import socket
 import ssl
 import time
 import uuid
+import sys
 HOST, PORT = "0.0.0.0", 8001
 
 # import pages.util
@@ -27,11 +28,16 @@ running = True
 server_socket = None
 
 def close():
+    print(f"{B}close signal received by webrtc.py{E}")
+    
     global running, server_socket
     running = False
-    server_socket = None
     for c in CLOSEABLE:
+        print(f"{G}webrtc.py: {c}{E}")
         c.close()
+    
+    # server_socket.shutdown(socket.SHUT_RDWR)
+    server_socket = None
 
 def main():
     def socket_signal(data, c):
@@ -198,6 +204,7 @@ def main():
         print(f"socket#{B}{c.no}{E} closing...")
         c.close()
     
+    # main() starts
     global PORT, server_socket
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -213,27 +220,36 @@ def main():
         if not valid:
             close()
             raise Exception("invalid port range, socket creation failed")
+        
         CLOSEABLE.add(server_socket)
         socket.setdefaulttimeout(None)
-        server_socket.listen()
+        server_socket.listen(1)
+        
         
         context = ssl.SSLContext(ssl._ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain('./data/cert_key.pem')
         with context.wrap_socket(server_socket, server_side=True) as ssock:
+            CLOSEABLE.add(ssock)
+            ssock
+            running = False
+
+            # sys.modules[__NAME__].CLOSEABLE = 
+
             while running:
                 c, addr = ssock.accept()
-                print(f"{' '*8}webrtf.py: new connection at {addr}")
                 CLOSEABLE.add(c)
+                print(f"{' '*8}webrtf.py: new connection at {addr}")
                 # c.settimeout(60)
-                threading.Thread(target=handle_socket,
-                        args=(c, addr)).start()
+                threading.Thread(target=handle_socket, args=(c, addr)).start()
         close()
 
+    print(f"{G}{' '*8}webrtc.py thread ending{E}")
 
 
 
 
-def initialize(wsgi_application_handler):
+
+def _initialize(wsgi_application_handler):
     global initialized
     if initialized:
         raise Exception("<module " + __name__ + "> already initialized")
@@ -241,8 +257,9 @@ def initialize(wsgi_application_handler):
         initialized = True
 
 
-    threading.Thread(target=main).start()
-
+    t = threading.Thread(target=main)
+    t.start()
+    print(f"{G}webrtc.py thread: {t}{E}")
 
     webrtjs_path = "pages/webrtc/webrtc.js"
     webrtjs_last_modified = os.stat(webrtjs_path).st_mtime

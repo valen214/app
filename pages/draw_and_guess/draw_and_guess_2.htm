@@ -1,0 +1,338 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width">
+<!--
+https://valen214.github.io/app/pages/draw_and_guess/draw_and_guess.htm
+-->
+<base href="//ec2-18-222-252-221.us-east-2.compute.amazonaws.com" />
+<script>
+var port = location.port;
+if(port){
+    var b = document.querySelector("base");
+    let url = new URL(b.href);
+    url.port = port;
+    b.href = url.href;
+}
+</script>
+<link rel="stylesheet" href="draw_and_guess/draw_and_guess.css" />
+<style>
+body {
+    touch-action: none; /*
+    auto | none | [ [ pan-x | pan-left | pan-right ] ||
+        [ pan-y | pan-up | pan-down ] || pinch-zoom ] | manipulation
+    */
+}
+</style>
+</head>
+<body>
+<div id="page-1" class="show">
+    <div>&nbsp;page 1</div>
+    <div id="menu">
+        <input id="user_name" type="text" placeholder="name" />
+        <input id="room_name" type="text" placeholder="enter room name" />
+        <span id="join_room">Join Room</span>
+        <span id="create_room">Create Room</span>
+        <div id="room_list"></div>
+    </div>
+</div>
+<div id="page-2">
+        <div>&nbsp;page 2</div>
+    <div id="page2_container">
+        <div id="page2_canvas_container">
+            <div id="page2_overlay_container">
+                <div id="page2_overlay_plaintext"></div>
+                <div id="page2_overlay_pickword">
+                    <div id="page2_overlay_pickword_label"></div>
+                    <div id="page2_overlay_pickword_word0"></div>
+                    <div id="page2_overlay_pickword_word1"></div>
+                    <div id="page2_overlay_pickword_word2"></div>
+                </div>
+            </div>
+            <canvas id="page2_canvas"></canvas>
+        </div>
+        <div id="page2_control">
+            <div id="page2_color_button"><span>&#x1F3A8;</span></div>
+        </div>
+        <div id="page2_color_plate">
+        </div>
+        <div id="page2_room_info">
+        </div>
+        <div id="page2_chat_room_container">
+            <div id="page2_chat_room"></div>
+            <input id="page2_chat_input" type="text"></input>
+        </div>
+    </div>
+</div>
+<div id="message" class="popup_message show hide"></div>
+<script src="draw_and_guess/util.js"></script>
+<script src="webrtc/webrtc_peer.js"></script>
+<script src="draw_and_guess/canvas.js"></script>
+<script type="module" src="draw_and_guess/main.js"></script>
+<script>
+const CONFIG = {
+
+};
+const UTIL = {};
+const HTML = {};
+const GAME = {};
+var ROOM = undefined;
+const PLAYER = {};
+const COMM = {};
+
+HTML.get = function(id){
+    if(!(id in HTML)){
+        HTML[id] = document.getElementById(id);
+    }
+    return HTML[id];
+};
+HTML.printInfo = function(line=""){
+
+};
+HTML.showPopup = function(message="", duration=500){
+
+};
+
+HTML.room_list_refresh_interval = 0;
+HTML.refreshRoomList = function(o){
+    let room_list_elem = HTML.get("room_list");
+    let elem;
+    let room_list = o["room_list"];
+    let i = room_list.length;
+
+    elem = room_list_elem.firstElementChild;
+    while(i--){
+        if(!elem){
+            elem = document.createElement("div");
+            room_list_elem.appendChild(elem);
+        }
+        let tuple = room_list[i];
+        elem.innerHTML = `name: ${tuple[0]}; user count: ${tuple[1]}<br />`;
+        elem = elem.nextElementSibling;
+    }
+
+    i = room_list_elem.children.length - room_list.length;
+    while(--i >= 0){
+        room_list_elem.removeChild(room_list_elem.lastElementChild);
+    }
+};
+HTML.startRefreshingRoomList = function(){
+    clearInterval(HTML.room_list_refresh_interval);
+    COMM.addServerMessageListener("room_list", HTML.refreshRoomList);
+    COMM.sendToServer({
+        type: "room_list",
+    });
+    HTML.room_list_refresh_interval = setInterval(() => {
+        COMM.sendToServer({
+            type: "room_list",
+        });
+    }, 5000);
+};
+HTML.stopRefreshingRoomList = function(){
+    clearInterval(HTML.room_list_refresh_interval);
+}
+
+HTML.initializeRoomButtons = function(){
+    let button_clicked = false;
+    function buttonClicked(e){
+        if(button_clicked){
+            HTML.showPopup("loading");
+            console.error(this["loading_messge"]);
+            return;
+        }
+        button_clicked = true;
+
+        const req = {
+            "type": this["type"],
+            "room_name": HTML.get("room_name").value,
+            "user_name": HTML.get("user_name").value,
+        };
+        COMM.addServerMessageListener(this["type"], (o) => {
+            if(o["status"]){
+                GAME.startRoom(o); // next stage
+            } else{
+                HTML.showPopup(o["message"]);
+            }
+            button_clicked = false;
+        }, {
+            once: true,
+        });
+
+        // might add timeout procedure
+    }
+
+    HTML.get("create_room").addEventListener("click", buttonClicked.bind({
+        type: "create_room",
+        loading_message: "create_room clicked: waiting response from server"
+    }));
+    HTML.get("join_room").addEventListener("click", buttonClicked.bind({
+        type: "join_room",
+        loading_message: "create_room clicked: waiting response from server"
+    }));
+};
+
+
+GAME.canvas = new CustomAnimatedCanvas(HTML.get("page2_canvas"));
+GAME.startRoom = function(o){
+    GAME.initialize(o);
+    GAME.initializeMessageHandler();
+
+    HTML.printInfo("");
+};
+// https://www.w3.org/TR/webdatabase/#databases
+ROOM.initialize = function(name, user_list){
+    ROOM = new P2PRoom(COMM.peer, user_list);
+    ROOM.name = name;
+};
+PLAYER.initialize = function(uuid, name){
+    PLAYER.uuid = uuid;
+    PLAYER.name = name;
+    PLAYER.color = randomColor((Math.random() + 0.618034) % 1);
+}
+GAME.initialize = function(o){
+    COMM.peer = new Peer(o["user_uuid"]);
+    ROOM.initialize(o["room_name"], o["user_list"]);
+    PLAYER.initialize(o["user_uuid"], o["user_name"]);
+    
+    const join_room_message = JSON.stringify({
+            "type": "room",
+            "action": "join_room",
+            "src_uuid": PLAYER.uuid,
+            "name": PLAYER.name,
+            "color": PLAYER.color,
+    });
+    COMM.onPeerConnectionOpen = function(pc){
+        pc.send(join_room_message);
+    };
+    
+    
+};
+GAME.initializeMessageHandler = function(){
+    for(let [type, listener] of Object.entries({
+            "room": GAME.onRoomMessage,
+            "canvas": GAME.onCanvasMessage,
+            "chat": GAME.onChatMessage,
+            "round": GAME.onRoundMessage,
+    })){
+        COMM.addPeerMessageListener(type, listener);
+    }
+};
+
+
+GAME.onRoomMessage = function(o, data, sender_id, id){
+    switch(o.action){
+    case "join_room":
+
+        console.log(`%c"${o.name}"`, "color:"+o.color, "joined the room");
+
+        pc.send(JSON.stringify({
+            "type": "room",
+            "action": "joined_room_feedback",
+            "src_name": PLAYER.name,
+            "src_uuid": PLAYER.uuid,
+        }));
+        break;
+    case "joined_room_feedback":
+
+        break;
+    }
+};
+GAME.onCanvasMessage = function(o){
+
+};
+GAME.onChatMessage = function(o){
+
+};
+GAME.onRoundMessage = function(o){
+
+};
+
+
+COMM.onNewPeerConnection = function(pc){
+    pc.on("message", COMM.onMessageFromPeer.bind(pc));
+};
+
+
+COMM.server_socket = null;
+COMM.server_message_listeners = {};
+COMM.onServerSocketOpen = function(e){
+    throw new Error("not implemented");
+};
+COMM.onMessageFromServer = function(e){
+    var msg = null;
+    try{
+        msg = JSON.parse(e.data);
+    } catch(e){
+        console.error(e);
+    }
+    if(!msg) return;
+
+    let unhandled = true;
+
+    if(msg.type in COMM.server_message_listeners){
+        console.log("%creceiving from server:", "color:red", msg);
+        let listeners = COMM.server_message_listeners[msg.type];
+        let i = listeners.length;
+        if(i > 0){
+            unhandled = false;
+        }
+        while(i--){
+            let [func, options] = listeners[i];
+            func(msg);
+            if(options.once){
+                listeners.splice(i, 1);
+            }
+        }
+    }
+
+    if(unhandled){
+        console.log("%cunhandled message from server", "color:red", msg);
+    }
+};
+COMM.addServerMessageListener = function(type, func, options = {
+    once: false,
+}){
+    if(type in COMM.server_message_listeners){
+        COMM.server_message_listeners[type].push([func, options]);
+    } else{
+        COMM.server_message_listeners[type] = [[func, options]];
+    }
+};
+COMM.initializeServerSocket = function(port){
+    if(parseInt(port)){
+        let server_socket_addr = `wss://${window.location.hostname}:${port}`;
+        console.log("server socket address:", server_socket_addr);
+
+        let s = new WebSocket(server_socket_addr)
+        s.addEventListener("open", COMM.onServerSocketOpen);
+        s.addEventListener("message", COMM.onMessageFromServer);
+
+        COMM.server_socket = s;
+    }
+};
+COMM.sendToServer = function(msg){
+    console.log("%csending to server:", "color:blue", msg);
+    if(typeof msg === "object"){
+        msg = JSON.stringify(msg);
+    }
+    COMM.server_socket.send(msg);
+};
+
+
+
+window.addEventListener("load", function(){
+    COMM.onServerSocketOpen = function(){
+        HTML.initializeRoomButtons(); // GAME.startRoom()
+        HTML.startRefreshingRoomList();
+    };
+    COMM.initializeServerSocket("<? PORT ?>");
+
+    if(!COMM.server_socket){
+        HTML.get("page-1").classList.remove("show");
+        HTML.get("page-2").classList.add("show");
+    }
+});
+
+</script>
+</body>
+</html>

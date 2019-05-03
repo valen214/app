@@ -22,6 +22,8 @@ from pages.util import (
 HOST, PORT = "0.0.0.0", 8001
 
 def main_html(env, start_res):
+    threading.Thread(target=main).start()
+
     with open("pages/draw_and_guess/draw_and_guess.htm", "r") as f, \
             open("pages/draw_and_guess/draw_and_guess.css", "r") as c:
         content = f.read().replace("<? PORT ?>", str(PORT))
@@ -65,11 +67,16 @@ data_handlers = {}
 running = True
 
 def close(socket_id=None):
+    print(f"{B}close signal received by draw_and_guess.py{E}")
     if socket_id == None:
         global running
         running = False
-        for id, s in list(connected_sockets.items()):
-            if id == "count": continue
+        for id, s in connected_sockets.items():
+            if id == "count":
+                continue
+            elif id == "active":
+                s.close()
+                continue
             s.close()
             del connected_sockets[id]
             print(f"socket#{id} closed successfully")
@@ -242,6 +249,7 @@ def main():
         context.load_cert_chain('./data/cert_key.pem')
         with context.wrap_socket(sock, server_side=True) as ssock:
             while running:
+                connected_sockets["active"] = ssock
                 c, addr = ssock.accept()
                 print(f"{' '*8}{G}draw_and_guess.py:",
                         f"new connection at {addr}{E}")
@@ -254,9 +262,6 @@ def main():
 
 
 def initialize(wsgi_application_handler):
-
-    threading.Thread(target=main).start()
-
     for regex, func in {
             "/(draw_and_guess/)?draw_and_guess(.html?)?": main_html,
             # "/(draw_and_guess/)?draw_and_guess\.css":

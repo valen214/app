@@ -91,8 +91,10 @@ class WSGIApplicationHandler:
 
     def remove_handlers_by_module(self, module_name):
         for l in self.__handlers.values():
-            for i in range(len(l)-1, 0, -1):
+            for i in range(len(l)-1, -1, -1):
+                # print(f"{G}check {l[i]}{E}")
                 if l[i][0] == module_name:
+                    # print(f"{R}removing {l[i]}{E}")
                     del l[i]
                     # l.pop(i)
 
@@ -266,8 +268,8 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 
 
 
-def module_thread():
-    print("loading modules...")
+def module_thread(event):
+    print("loading modules...\n")
 
     scripts = []
 
@@ -305,8 +307,8 @@ def module_thread():
             if hasattr(m, "initialize") and callable(m.initialize):
                 m.initialize(wsgi_application_handler)
             else:
-                print(f'{R}<module "{n}"> has no initialize(){END}\n')
-            print(f'- load <module "{n}"> end\n')
+                print(f'{R}<module "{n}"> has no initialize(){END}')
+            print(f'{R}>{E} load <module "{n}"> end\n')
         except:
             print_stack_trace()
             print(path + " not loaded")
@@ -315,8 +317,7 @@ def module_thread():
         add_script(path)
 
     # keep track of file info
-    running = True
-    while running:
+    while not event.is_set():
         remaining = list(info.keys()) # unhandled
         # iterate files system
         for (dirpath, dirnames, filenames) in os.walk("./pages/"):
@@ -349,23 +350,30 @@ def module_thread():
             if hasattr(m, "close"): m.close()
             del info[path]
         
-        time.sleep(1)
+        event.wait(1)
+    
+    for path, [m, _] in info.items():
+        if hasattr(m, "close"):
+            m.close()
+
+    print(f"{R}module thread ending{E}")
 
 def runtime_interact():
     # print("\n".join([f"{a}: {b}" for a, b in dict(globals()).items()]))
-    line = input()
+    line = ""
     while line != "exit":
         try:
+            line = input()
             eval(line)
-        except KeyboardInterrupt:
-            pass
-        except Exception as e:
-            print(e)
-        line = input()
+        except KeyboardInterrupt as ki:
+            print(f"{B}runtime_interact() received KeyboardInterrupt{E}")
+            raise ki
+    print(f"{R}runtime_interact thread ending{E}")
 
 def main():
-    threading.Thread(target=module_thread).start()
-    threading.Thread(target=runtime_interact).start()
+    e1 = threading.Event()
+    t = threading.Thread(target=module_thread, args=(e1,))
+    t.start()
     
     # this returns correct value, but will show the connection info
     # publiip = subprocess.check_output(["curl",
@@ -374,7 +382,7 @@ def main():
     proc = subprocess.Popen(["curl",
             "http://169.254.169.254/latest/meta-data/public-ipv4"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print(f"{P}public ip: {proc.communicate()[0].decode('utf-8')}{END}")
+    print(f"{P}\npublic ip: {proc.communicate()[0].decode('utf-8')}{END}")
 
     s = []
     def start_server(address, port, use_https=False):
@@ -384,32 +392,52 @@ def main():
             ctx.load_cert_chain('./data/cert_key.pem')
             server.socket = ctx.wrap_socket(server.socket, server_side=True)
 
-        print(f"{'https' if use_https else 'http'}",
-                f"server listening at {address}:{port}")
+        print(f"{G}{'https' if use_https else 'http'}",
+                f"server listening at {address}:{port}{E}")
 
-        try:
-            s.append(server)
-            server.serve_forever()
-        except KeyboardInterrupt:
-            # print(ki)
-            pass
-        for a in s:
-            a.server_close()
+        d_port = 443 if use_https else 80
+        print(f"{G}redirecting port :{d_port} to :{port}")
+        os.system("sudo iptables -A INPUT -i eth0 " +
+                f"-p tcp --dport {d_port} -j ACCEPT")
+        os.system("sudo iptables -A PREROUTING -t nat -i eth0 " +
+                f"-p tcp --dport {d_port} -j REDIRECT --to-port {port}")
 
-    l = []
+        nonlocal serverCount
+        serverCount -= 1
+        if not serverCount: # args defined below
+            print()
+            print("----" * 20)
+
+        s.append(server)
+        server.serve_forever()
+        print(f"{R}server@{address}:{port} ended serving{E}")
+
+    serverCount = 0
     for t in [
-        ("0.0.0.0", 8128, False),
-        ("0.0.0.0", 80, False),
-        # ("0.0.0.0", 443, True),
-        ("0.0.0.0", 8129, True),
-    ]:
-        l.append(threading.Thread(target=start_server, args=t))
-        l[-1].start()
+            ("0.0.0.0", 8128, False),
+            # ("0.0.0.0", 80, False), # requires sudo
+            # ("0.0.0.0", 443, True), # requires sudo
+            ("0.0.0.0", 8129, True)]:
+        serverCount += 1
+        threading.Thread(target=start_server, args=t).start()
+    
+    def cleanup():
+        e1.set()
+        for a in s:
+            a.shutdown()
+        print("threads still running:")
+        print(threading.enumerate())
 
-    for t in l:
-        t.join()
 
-    print(f"{R}program exit{E}")
+    try:
+        runtime_interact()
+    except KeyboardInterrupt:
+        print(f"{B}close signal received by app.py (main thread){E}")
+    finally:
+        cleanup()
+    
+
+    print(f"{R}main thread ending{E}")
 
 if __name__ == "__main__":
     main()

@@ -4,6 +4,10 @@
 from pages.util import *
 
 def index(env, start_res):
+    dt_str = env["HTTP_REQUEST"].log_date_time_string()
+    print(f'{" " * 8}"GET /" @ [{dt_str}]')
+    print()
+    print("----" * 20)
     with open("pages/index.htm", "r") as f:
         content = f.read()
         start_res("200 OK", [
