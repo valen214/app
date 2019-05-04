@@ -342,8 +342,9 @@ function layout_refresh(e){ // trigger when scroll and resize
     // it will keep refreshing side_nav height
     // there's a flaw in switching screen size
     if(!side_nav_height_refreshed){
-        side_nav.style.height = window.innerHeight - (large_screen ?
-                top_nav.getBoundingClientRect().bottom : 0) + "px";
+        // window.innerHeight includes scroll bar
+        side_nav.style.height = document.documentElement.clientHeight -
+        (large_screen ? top_nav.getBoundingClientRect().bottom : 0) + "px";
     }
     side_nav_height_refreshed = scroll_over_banner > 0;
     
@@ -354,7 +355,9 @@ function layout_refresh(e){ // trigger when scroll and resize
 }
 
 
-document.addEventListener("scroll", layout_refresh);
+document.addEventListener("scroll", layout_refresh, {
+    passive: false
+});
 /****/
 window.addEventListener("resize", layout_refresh);
 /*/

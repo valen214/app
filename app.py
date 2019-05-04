@@ -380,9 +380,13 @@ def main():
     #         "http://169.254.169.254/latest/meta-data/public-ipv4"])
     #
     proc = subprocess.Popen(["curl",
+            "http://169.254.169.254/latest/meta-data/local-ipv4"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print(f"{P}\nprivate ip: {proc.communicate()[0].decode('utf-8')}{END}")
+    proc = subprocess.Popen(["curl",
             "http://169.254.169.254/latest/meta-data/public-ipv4"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print(f"{P}\npublic ip: {proc.communicate()[0].decode('utf-8')}{END}")
+    print(f"{P}public ip: {proc.communicate()[0].decode('utf-8')}{END}\n")
 
     s = []
     def start_server(address, port, use_https=False):
@@ -395,12 +399,13 @@ def main():
         print(f"{G}{'https' if use_https else 'http'}",
                 f"server listening at {address}:{port}{E}")
 
-        d_port = 443 if use_https else 80
-        print(f"{G}redirecting port :{d_port} to :{port}")
-        os.system("sudo iptables -A INPUT -i eth0 " +
-                f"-p tcp --dport {d_port} -j ACCEPT")
-        os.system("sudo iptables -A PREROUTING -t nat -i eth0 " +
-                f"-p tcp --dport {d_port} -j REDIRECT --to-port {port}")
+        if True:
+            d_port = 443 if use_https else 80
+            print(f"{G}redirecting port :{d_port} to :{port}")
+            os.system("sudo iptables -A INPUT -i eth0 " +
+                    f"-p tcp --dport {d_port} -j ACCEPT")
+            os.system("sudo iptables -A PREROUTING -t nat -i eth0 " +
+                    f"-p tcp --dport {d_port} -j REDIRECT --to-port {port}")
 
         nonlocal serverCount
         serverCount -= 1
