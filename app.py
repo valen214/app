@@ -261,7 +261,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
     def start_res(self, msg, headers = []):
         self.send_response(code=int(msg[:3]), message=msg[4:])
         for key, value in headers:
-            self.send_header(key, value)
+            self.send_header(str(key), str(value))
         self.end_headers()
 
 

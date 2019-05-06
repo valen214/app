@@ -15,6 +15,7 @@ html, body {
     user-select: none;
     
     cursor: default;
+    overflow-x: hidden;
 }
 
 a {
@@ -313,6 +314,9 @@ parent child {
 #main {
     display: inline-block;
     z-index: 1;
+}
+#main img {
+    max-width: 100%;
 }
 
 #title {
