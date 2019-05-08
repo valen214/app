@@ -32,6 +32,7 @@ https://code.jquery.com/jquery-3.2.1.min.js
 -->
 
 <script type="text/javascript" src="/index.js"></script>
+<script type="text/javascript" src="/util.js"></script><
 
 <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
 <script>
@@ -209,41 +210,26 @@ Object.defineProperty(window, "addNavigationLinks", {
         <h5>selected</h5>
         <canvas id="image_canvas"></canvas><br />
         <script>
-function readFileContent(f, type, callback){
-    if(f instanceof File){
-        var reader = new FileReader();
-        new Promise(resolve => {
-            reader.addEventListener("loadend", resolve)
-        }).then(e => {
-            console.log(e);
-            if(typeof callback === "function"){
-                callback(e.target.result);
+
+window.addEventListener("paste", function paste(e){
+    var data = (e.clipboardData ||
+            e.originalEvent && e.originalEvent.clipboardData);
+    var items = data && data.items;
+
+    if(items){
+        var _URL = window.URL || window.webkitURL;
+        for(var item of items){
+            if(item.kind === "string" && item.type.match(/^text/)){
+                console.log("pasted:", item.getAsString());
+            } else if(item.kind == "file"){
+                var f = item.getAsFile();
+                var url = _URL.createObjectURL(f);
+                f.readAs("binarystring", POST);
+                console.log(url);
             }
-        });
-        
-        switch(type){
-        case "array":
-        case "array_buffer":
-        case "buffer":
-            reader.readAsArrayBuffer(f);
-            break;
-        case "string":
-        case "binary_string":
-            reader.readAsBinaryString(f);
-            break;
-        case "text":
-            reader.readAsText(f);
-            break;
-        case "dataurl":
-        case "url":
-            reader.readAsDataURL(f);
-            break;
-        default:
-            console.error("unsupported reader action type");
-            break;
         }
     }
-}
+});
 
 function POST(data){
     var XHR = new XMLHttpRequest();
@@ -258,7 +244,7 @@ new Promise(resolve => {
     file_upload.addEventListener("change", resolve);
 }).then(e => new Promise(resolve => {
     console.assert(e.target === file_upload);
-    readFileContent(file_upload.files[0], "url", resolve);
+    file_upload.files[0].readAs("url", resolve);
 })).then(url => new Promise(resolve => {
     var img = new Image();
     img.addEventListener("load", resolve);

@@ -6,13 +6,12 @@ import struct
 
 
 
-try:
-    from cryptography import x509 # dependencies
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives import hashes, serialization
-    from cryptography.hazmat.primitives.asymmetric import padding
-except:
-    pass
+
+from cryptography import x509 # dependencies
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+
 
 
 

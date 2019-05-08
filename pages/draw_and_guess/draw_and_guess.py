@@ -268,7 +268,7 @@ def initialize(wsgi_application_handler):
             #         static_file("pages/draw_and_guess/draw_and_guess.css"),
             "/(draw_and_guess/)?canvas.js":
                     static_file("pages/draw_and_guess/canvas.js"),
-            "/(draw_and_guess/)?util.js":
+            "/draw_and_guess/util.js":
                     static_file("pages/draw_and_guess/util.js"),
             "/(draw_and_guess/)?p2p.js":
                     static_file("pages/draw_and_guess/p2p.js"),
