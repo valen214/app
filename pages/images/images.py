@@ -13,6 +13,12 @@ import json
 
 images = []
 
+def clear_images(env, start_res):
+    del images[:]
+    start_res("200 OK", [
+        ("Content-Length", "0")
+    ])
+    return ""
 
 
 def upload_image(env, start_res):
@@ -50,5 +56,6 @@ def initialize(wsgi_application_handler):
 
     for regex, func in {
             "/(images?/)?get_images": retrieve_images,
+            "/(images?/)?clear_images": clear_images,
     }.items():
         wsgi_application_handler.add("GET", regex, func)

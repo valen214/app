@@ -27,18 +27,19 @@ File.prototype.readAs = function readAs(type, callback){
         case "array":
         case "array_buffer":
         case "buffer":
-            reader.readAsArrayBuffer(f);
+            reader.readAsArrayBuffer(this);
             break;
         case "string":
         case "binary_string":
-            reader.readAsBinaryString(f);
+        case "binarystring":
+            reader.readAsBinaryString(this);
             break;
         case "text":
-            reader.readAsText(f);
+            reader.readAsText(this);
             break;
         case "dataurl":
         case "url":
-            reader.readAsDataURL(f);
+            reader.readAsDataURL(this);
             break;
         default:
             console.error("unsupported reader action type");
@@ -46,7 +47,6 @@ File.prototype.readAs = function readAs(type, callback){
         }
     
     }).then(e => {
-        console.log(e);
         if(typeof callback === "function"){
             callback(e.target.result);
         } else{

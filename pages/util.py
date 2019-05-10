@@ -23,7 +23,7 @@ def content_type(path, default="text/plain"):
             if path.endswith(ext):
                 ctype = t
                 break
-    if ctype.startswith("text/"):
+    if ctype.startswith("text/") or ext == ".js":
         ctype += "; charset=utf-8"
     return ctype
 

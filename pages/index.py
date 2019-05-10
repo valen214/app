@@ -51,6 +51,7 @@ def initialize(wsgi_application_handler):
             "/index.css": index_css,
             "/index.js": index_js,
             "/([^/]+/)*favicon.(png|icon?)": favicon,
+            "/util.js": wsgi_application_handler.default_handler,
     }.items():
         wsgi_application_handler.add("GET", regex, func)
 

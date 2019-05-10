@@ -242,19 +242,19 @@ for(var i in top_nav.childNodes){
 
 var running = false; // extremely important
 function layout_refresh(e){ // trigger when scroll and resize
-    if(running){ return;}
+    if(running){ return; }
     running = true;
     var scroll_top = (window.pageYOffset ||
             window.scrollY || document.body.scrollTop);
     var scroll_over_banner = scroll_top -
                     banner.offsetTop - banner.clientHeight;
-    var large_screen = is_large_screen(),
-            top_nav_height = top_nav.getBoundingClientRect().height;
+    var large_screen = is_large_screen();
+    var top_nav_height = top_nav.getBoundingClientRect().height;
     
     /**
      * RESIZE
      */
-    if(e && e.type == "resize"){ // resize
+    if(e && e.type == "resize"){
         if(top_nav.getBoundingClientRect().height >
                 parseInt(getDocVar("--top_nav-height").slice(0, -2))){
             var last = top_nav.lastElementChild;
@@ -296,7 +296,7 @@ function layout_refresh(e){ // trigger when scroll and resize
                     top_nav_height + main.clientHeight +
                     (large_screen ? content_scroll_buffer : 0) + "px";
         }
-        main.classList.remove("fixed", "scroll");
+        // main.classList.remove("fixed");
         top_nav.style.top = 0;
         side_nav_height_refreshed = false;
         
@@ -311,10 +311,9 @@ function layout_refresh(e){ // trigger when scroll and resize
         if(large_screen){
             side_nav.classList.add("fixed");
             
-            main.classList.toggle("fixed",
-                    scroll_over_banner < content_scroll_buffer);
-            main.classList.toggle("scroll",
-                    scroll_over_banner > content_scroll_buffer);
+            if(scroll_over_banner < content_scroll_buffer){
+                main.classList.add("fixed");
+            }
         
         
         } else{ // small screen

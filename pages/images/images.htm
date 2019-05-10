@@ -4,232 +4,125 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>index.htm</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 <style>
 html, body, div, span, img, a, canvas, pre {
     box-sizing: border-box;
 }
 </style>
-<!--main-custom-project
-    action: python;
-    # action: replace;
-    # module: main;
-    method: index_link;
--->
-<link rel="icon" type="image/x-icon" href="/favicon.ico" />
-<link rel="stylesheet" type="text/css" href="/index.css" />
-<!--  /-->
-<!-- link rel="icon" type="image/x-icon" href="https://goo.gl/ynR6s1" -->
 
-<!--
-jquery
 
-https://goo.gl/8vrVJH
-https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
-https://goo.gl/nWxK5X
-https://code.jquery.com/jquery-3.2.1.min.js
-<script type="text/javascript"
-    src="https://goo.gl/nWxK5X" async="async"></script>
--->
-
-<script type="text/javascript" src="/index.js"></script>
-<script type="text/javascript" src="/util.js"></script><
-
-<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-<script>
-    (adsbygoogle = window.adsbygoogle || []).push({
-        google_ad_client: "ca-pub-6030416020552943",
-        enable_page_level_ads: true
-    });
-</script>
-
-<script>
-Object.defineProperty(window, "addNavigationLinks", {
-    value: function(label, ...content){
-        var HTML_SOURCE_LIST = [];
-        var f = (src) =>{
-            HTML_SOURCE_LIST.push(src);
-        };
-        var g = ([href, text, ...r], type) =>{
-            if(!text) return;
-
-            var id = r.length ? `id="${r[0]}"` : "";
-            var _class = (isList ? "" : "cstm theme4 ") + type;
-            var href = href ? `href="${href}"` : "";
-
-            f(`<a ${id} class="${_class}" ${href}>${text}</a>`);
-        };
-
-        f('<span class="cstm theme4 top_nav_item top_tooltip">');
-            if(label) g(label, "display");
-            var isList = content && content.length > 1;
-            if(isList) f('<span class="cstm theme4 content-list">');
-            for(var a of content){
-                g(a, "content");
-            };
-            if(isList) f("</span>");
-
-        f("</span>");
-
-        document.currentScript.insertAdjacentHTML(
-                "beforebegin", HTML_SOURCE_LIST.join(""));
-    },
-    enumerable: false
-});
-</script>
+<script type="text/javascript" src="/util.js"></script>
 
 
 </head>
 <body>
-<div id="loading_cover">Loading...</div>
-<div id="banner" class="cstm s12 l12 theme1">BANNER</div>
-<div id="top_nav" class="cstm s12 l12 theme4">
-    <!-- it's painful that it's depending on font -->
-    <span id="side_nav_btn" class="cstm theme4">&#9776;</span>
-    <a id="home_btn" class="cstm theme4" href="/index.htm">&#8962;</a>
-    <span id="more_btn" class="cstm theme4"><!--up:(&#708;);
-        down:(&#8964;&#11163;&#11167;&#709;)-->&#709;</span>
-    <div id="item_container" class="cstm s12 theme1"></div>
-    <!-- top nav items below-->
-    <span id="top_nav_lbl" class="cstm theme4 top_nav_item">top_nav</span>
-    <a class="cstm theme4 top_nav_item" href="/index.htm">Main Page</a>
-    
-    <script>
-    addNavigationLinks([
-        "",
-        "Codes"
-    ], [
-        "code_snippets/pointer_event",
-        "touch"
-    ], []);
-    </script>
-    </span>
-    <!--main-custom-project
-        action: python;
-        # action: replace;
-        # module: main;
-        method: index_top_nav;
-    -->
-    <script>
-    console.time();
-    // https://github.com/Microsoft/vscode/issues/27378
-    addNavigationLinks([
-        "",
-        "Local",
-        "local_btn"
-    ], [
-        "https://github.com/valen214/app",
-        // "https://github.com/valen214/main-custom-project",
-        "git hub repo",
-        "webgl_btn"
-    ]);
+<style>
+#clear_images {
+    border: 1px solid #aaa;
+    border-radius: 2px;
+    width: 120px;
+    height: 70px;
 
-    addNavigationLinks([
-        "https://valen214.github.io/app/pages",
-        // "https://valen214.github.io/main-custom-project/",
-        "github.io"
-    ], [
-        "https://github.com/valen214/main-custom-project",
-        "git hub repo"
-    ]);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#clear_images:hover {
+    transform: translateY(1px);
+}
 
-    addNavigationLinks([
-            "",
-            "useful links"
-        ], [
-            "https://www.fullstackpython.com/webrtc.html",
-            "fullstack python",
-        ], [
-            "https://flymachi.com/",
-            "地城邂逅～記憶憧憬～個人心得分享站 小波的升級科技",
-        ], [
-           "https://forum.gamer.com.tw/C.php?bsn=31981&snA=2703&tnum=5",
-           "地城邂逅～記憶憧憬 支援者例表"
-        ], [
-            "https://flymachi.com/5437/",
-            "地城邂逅～記憶憧憬 【派遣任務】特殊揭示版"
-        ], [
-            "https://forum.gamer.com.tw/B.php?page=2&bsn=47551",
-            "五等分的花嫁"
-        ], [
-            "https://www.w3schools.com/cssref/css_selectors.asp",
-            "css selectors"
-        ], [
-            "http://gameprogrammingpatterns.com/",
-            "game prog pattern"
-        ], [
-            "https://stackoverflow.com/questions/" +
-                    "33175909/copy-image-to-clipboard",
-            "copy image to clipboard"
-        ], [
-            "https://www.youtube.com/watch?v=M5Jf3eftGH8" +
-                "&list=PL69ABdix-sSUiOX2wBecZRGG368a4qaMx&index=1",
-            "songs playlist"
-        ], [
-            "https://developer.mozilla.org/kab/docs/Games/" +
-                    "Techniques/3D_on_the_web",
-            "3D on the web"
-        ], [
-            "http://motherfuckingwebsite.com/",
-            "really simple website"
-        ], [
-            "https://vuejs.org/",
-            "vue.js framework",
-        ], [
-            "https://molily.de/robust-javascript/",
-            "robust js"
-        ], [
-            "http://flightarcade.com/learn/",
-            "js game - fligh arcade"
-        ], [
-            "",
-            "list get default: (a[n:n+1]+[default])[0]<br/>" +
-            "(a[n:n+1] or [default])[0]"
-        ]);
-    console.timeEnd();
-    </script>
-    <!--/-->
-</div>
-<div class="cstm s12 l12 row theme">
-<div id="side_nav" class="cstm s9 theme2">
-    <span>SIDE NAV</span><br /><br />
-    <a href="https://www.w3schools.com/howto/howto_js_sidenav.asp"
-        >w3schools animated side nav</a>
-    <br /><br /><br /><br /><br /><br />
-    <br /><br /><br /><br /><br /><br />
-    <br /><br /><br /><br /><br /><br />
-    <br /><br /><br /><br /><br /><br />
-    <br /><br /><br /><br /><br /><br />
-    <br /><br /><br /><br /><br /><br />
-</div>
-<div id="end_message" class="hide"></div>
-<div id="main" class="cstm s12">
-    <div id="title" class="cstm row s12 l12 theme4">TITLE</div>
-    <div id="content" class="cstm s12 l12 row theme">
+</style>
 
-        <input id="file_upload" type="file" accept="image/*" /><br />
-        <h5>selected</h5>
-        <canvas id="image_canvas"></canvas><br />
-        <script>
 
-window.addEventListener("paste", function paste(e){
+<input id="file_upload" type="file" accept="image/*" />
+<div id="clear_images">clear images</div><br />
+<h5>selected</h5>
+<canvas id="image_canvas"></canvas><br />
+<script>
+const clear_images = document.getElementById("clear_images");
+clear_images.addEventListener("click", e => {
+    fetch(new Request("/images/clear_images")).then(
+        response => response.text()).then(
+        text => console.log("images cleared, server response:", text));
+});
+
+function pasteImage(e){
+    const func = pasteImage.f || (pasteImage.f = function f(i, t, s){
+        if(s.length > 60){
+            s = s.slice(0, 60) + "...";
+        }
+        console.log(`paste item #${i} <${t}>: ${s}`);
+    });
+
     var data = (e.clipboardData ||
             e.originalEvent && e.originalEvent.clipboardData);
     var items = data && data.items;
 
     if(items){
         var _URL = window.URL || window.webkitURL;
-        for(var item of items){
+        for(var [i, item] of Array.prototype.entries.call(items)){
             if(item.kind === "string" && item.type.match(/^text/)){
-                console.log("pasted:", item.getAsString());
+                new Promise(resolve => item.getAsString(resolve)
+                ).then(pasted_string => func(i, "string", pasted_string));
+                // rmb not to use 'item' in promise.then
             } else if(item.kind == "file"){
                 var f = item.getAsFile();
-                var url = _URL.createObjectURL(f);
-                f.readAs("binarystring", POST);
-                console.log(url);
+                f.readAs("buffer", loadImage);
+                
+                // var url = _URL.createObjectURL(f);
+                // func(i, item.kind, url);
             }
         }
     }
-});
+}
+window.addEventListener("paste", pasteImage);
+
+function loadImage(data){
+    if(data instanceof ArrayBuffer){
+        console.log("loadImage(): image received, loading");
+
+        const _URL = window.URL || window.webkitURL;
+        const img = new Image();
+        const url = _URL.createObjectURL(new Blob(
+                [new Uint8Array(data)], // { type: "text/plain" }
+        ));
+        console.log("loadImage(): created object url:", url);
+
+        const cvs = document.getElementById("image_canvas");
+        const ctx = cvs.getContext("2d");
+        new Promise((resolve, error) => {
+            img.addEventListener("load", resolve);
+            img.addEventListener("error", error);
+            img.src = url;
+        }).then(e => {
+            console.assert(this === window);
+            console.assert(e.target === img);
+
+            cvs.style.maxWidth = "100%";
+            cvs.style.height = "auto";
+            cvs.width = img.width;
+            cvs.height = img.height;
+
+            ctx.drawImage(img, 0, 0);
+            var data = cvs.toDataURL("image/png", 1.0);
+            POST(data);
+
+            new Promise(resolve => {
+                cvs.toBlob(resolve);
+            }).then(blob => new Promise(resolve => {
+                File.prototype.readAs.call(blob, "binarystring", resolve);
+            })).then(data => {
+               console.log("data converted from canvas:", data); 
+            });;
+        }).catch(e => {
+            console.error("loadImage(): image loading failed; url:", url);
+        });
+
+    } else{
+        console.error("loadImage(): <data> is not ArrayBuffer");
+    }
+}
 
 function POST(data){
     var XHR = new XMLHttpRequest();
@@ -239,38 +132,22 @@ function POST(data){
     XHR.send(data);
 }
 
+// upload button listener
 var file_upload = document.getElementById("file_upload");
 new Promise(resolve => {
     file_upload.addEventListener("change", resolve);
 }).then(e => new Promise(resolve => {
     console.assert(e.target === file_upload);
-    file_upload.files[0].readAs("url", resolve);
-})).then(url => new Promise(resolve => {
-    var img = new Image();
-    img.addEventListener("load", resolve);
-    img.src = url;
-})).then(e => {
-    var img = e.target;
-    console.log(this);
-    var cvs = document.getElementById("image_canvas");
-    var ctx = cvs.getContext("2d");
+    file_upload.files[0].readAs("buffer", loadImage);
+}));
 
-    cvs.width = img.width;
-    cvs.height = img.height;
 
-    cvs.style.width = content.clientWidth;
-
-    ctx.drawImage(img, 0, 0);
-
-    var data = cvs.toDataURL("image/png");
-    POST(data);
-    console.log("canvas data url: ", data);
-});
 
 document.addEventListener("load", e => {
     console.log("document laoded");
 });
 
+// retrieve images from server
 new Promise(resolve => {
     var XHR = new XMLHttpRequest();
     XHR.open("GET", "get_images");
@@ -279,98 +156,25 @@ new Promise(resolve => {
     XHR.send();
 }).then(e => {
     var images = e.target.response;
-    console.log(images);
+    console.log("images retrieved from server:", images);
 
     for(var data of images){
         var img = new Image();
+        img.style.maxWidth = "100%";
+        img.style.height = "auto";
         img.src = data;
-        content.appendChild(img);
+        document.body.appendChild(img);
     }
 });
-        </script>
-
-        <script>
-
-function paste(e){
-    if(firefox) return;
-    log("function paste(e) invoked");
-    // if(elem) elem.innerHTML = "";
-    // if(elem) elem.innerHTML = Math.random();
-    if(e.clipboardData){
-        log("clipboardData is provided in the event");
-        var items = (e.clipboardData
-                || e.originalEvent.clipboardData).items;
-        if(items){
-            var imgFound = false;
-            for(var i = 0; i < items.length; ++i){
-                log("item: " + JSON.stringify(items[i]));
-                if(items[i].type.indexOf("text/plain") >= 0){
-                    log("text pasted");
-                    log(items[i]);
-                }
-                if(((items[i].type).indexOf("image") >= 0)){
-                    var blob = items[i].getAsFile();
-                    var objURL = window.URL || window.webkitURL;
-                    var source = objURL.createObjectURL(blob);
-                    // blob.close();
-                    renderImage(source);
-                    
-                    imgFound = true;
-                    log("image is found");
-                }
-            }
-            if(!imgFound) log("image is not found in the clipboard");
-        } else{
-            log("but clipboardData.items is not presented");
-        }
-    } else{
-        setTimeout(checkInput, 1);
-    }
-}
-        
-        </script>
-
-    </div>
-    <div id="footer" class="cstm s12 l12 theme7">FOOTER</div>
-</div>
-</div>
-<!--
-batch
-http://www.robvanderwoude.com/escapechars.php
-
-php
-https://www.tutorialspoint.com/php/php_functions.htm
-
-https://stackoverflow.com/questions/3737139/
-reference-what-does-this-symbol-mean-in-php
-
-html
-https://www.w3schools.com/css/css_boxmodel.asp
-
-nice javascript page
-http://bonsaiden.github.io/JavaScript-Garden/
-
-grid
-https://zellwk.com/blog/responsive-grid-system/
-
-float
-https://css-tricks.com/all-about-floats/
-
-icon fonts and svg sprite
-http://ianfeather.co.uk/ten-reasons-we-switched-from-an-icon-font-to-svg/
-
-pending to check
-https://ghost.org/
-
-media query
-https://www.w3schools.com/css/css3_mediaqueries.asp
--->
+</script>
 <script>
+/*
 console.log = (function(__log){
   return function(...args){
     __log(...args);
   };
 })(console.log);
+*/
 
 console.log(window.onhashchange);
 console.log("onhashchange" in window);

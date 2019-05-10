@@ -132,7 +132,7 @@ class WSGIApplicationHandler:
         if method == "GET":
             content = ""
             if os.path.exists("." + path):
-                with open("." + path, "r") as f:
+                with open("." + path, "rb") as f:
                     content = f.read()
                 start_res("200 OK", [
                         ("Content-Type", content_type(path)),
@@ -370,11 +370,7 @@ def runtime_interact():
             raise ki
     print(f"{R}runtime_interact thread ending{E}")
 
-def main():
-    e1 = threading.Event()
-    t = threading.Thread(target=module_thread, args=(e1,))
-    t.start()
-    
+def print_aws_info():
     # this returns correct value, but will show the connection info
     # publiip = subprocess.check_output(["curl",
     #         "http://169.254.169.254/latest/meta-data/public-ipv4"])
@@ -387,6 +383,13 @@ def main():
             "http://169.254.169.254/latest/meta-data/public-ipv4"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(f"{P}public ip: {proc.communicate()[0].decode('utf-8')}{END}\n")
+    print()
+    print("----" * 20)
+
+def main():
+    e1 = threading.Event()
+    t = threading.Thread(target=module_thread, args=(e1,))
+    t.start()
 
     s = []
     def start_server(address, port, use_https=False):
@@ -406,24 +409,25 @@ def main():
                     f"-p tcp --dport {d_port} -j ACCEPT")
             os.system("sudo iptables -A PREROUTING -t nat -i eth0 " +
                     f"-p tcp --dport {d_port} -j REDIRECT --to-port {port}")
+            print(E)
 
-        nonlocal serverCount
-        serverCount -= 1
-        if not serverCount: # args defined below
+        start_server.serverCount -= 1
+        if not start_server.serverCount: # args defined below
             print()
             print("----" * 20)
+            print_aws_info()
 
         s.append(server)
         server.serve_forever()
         print(f"{R}server@{address}:{port} ended serving{E}")
 
-    serverCount = 0
+    start_server.serverCount = 0
     for t in [
             ("0.0.0.0", 8128, False),
             # ("0.0.0.0", 80, False), # requires sudo
             # ("0.0.0.0", 443, True), # requires sudo
             ("0.0.0.0", 8129, True)]:
-        serverCount += 1
+        start_server.serverCount += 1
         threading.Thread(target=start_server, args=t).start()
     
     def cleanup():
